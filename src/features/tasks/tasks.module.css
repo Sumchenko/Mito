@@ -821,3 +821,81 @@
 .tracked-of {
   color: var(--text-tertiary);
 }
+
+/* ---------- Task activity (details pane) ---------- */
+.activity {
+  margin-top: var(--space-5);
+}
+.activity-note {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-tertiary);
+}
+.activity-empty,
+.activity-line {
+  margin-top: var(--space-2);
+  font-size: var(--text-caption);
+  color: var(--text-secondary);
+}
+.activity-line b {
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.estimate-meter {
+  position: relative;
+  margin-top: var(--space-2);
+  height: 6px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--text-primary) 7%, transparent);
+}
+.estimate-meter span {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent);
+  transition: width var(--dur-slow) var(--ease-out);
+}
+.estimate-meter[data-over='true'] span {
+  background: var(--tint-orange);
+}
+.estimate-text {
+  margin-top: 6px;
+  font-size: var(--text-caption);
+  color: var(--text-tertiary);
+}
+.spark {
+  display: grid;
+  grid-template-columns: repeat(14, minmax(0, 1fr));
+  gap: 3px;
+  height: 44px;
+  margin-top: var(--space-4);
+}
+.spark-day {
+  display: flex;
+  align-items: flex-end;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--text-primary) 4%, transparent);
+  cursor: pointer;
+}
+.spark-day:hover {
+  background: var(--bg-subtle-hover);
+}
+.spark-day span {
+  display: block;
+  width: 100%;
+  border-radius: 3px;
+  background: var(--accent);
+}
+.spark-day[data-today='true'] {
+  box-shadow: inset 0 -2px 0 var(--accent-text);
+}
+.spark-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+}

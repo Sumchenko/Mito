@@ -154,6 +154,10 @@ export const timeEntriesRepo = {
   },
 
   inRange: (from: Timestamp, to: Timestamp): Promise<TimeEntry[]> => inRange(from, to),
+
+  /** Live entries of the given tasks (e.g. a task and its subtasks), sorted by start. */
+  forTasks: (taskIds: Id[]): Promise<TimeEntry[]> =>
+    db.timeEntries.where('taskId').anyOf(taskIds).filter(alive).sortBy('start'),
 }
 
 /** Duration in ms, counting a running entry up to `now`. */

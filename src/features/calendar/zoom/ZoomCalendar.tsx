@@ -217,7 +217,8 @@ export function ZoomCalendar({ initial, factOpen = false, onApi, onView }: ZoomC
       const p = local(e)
       if (e.ctrlKey || e.metaKey) {
         // Trackpad pinches arrive as ctrl+wheel with small deltas; mouse wheels with ±100.
-        zoomBy(-e.deltaY * unit * 0.0045, p.x, p.y)
+        // Spreading the fingers (or wheel up) gives deltaY < 0 and must zoom in, i.e. lower z.
+        zoomBy(e.deltaY * unit * 0.0045, p.x, p.y)
       } else if (e.shiftKey) {
         panBy(e.deltaY * unit, 0)
       } else {

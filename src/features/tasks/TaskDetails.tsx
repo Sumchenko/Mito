@@ -22,6 +22,7 @@ import { Segmented } from '@/ui/Segmented'
 import { TaskTimerButton } from '@/features/timer/TaskTimerButton'
 import { findTag } from './createTask'
 import { PRIORITY_COLOR } from './priority'
+import { TaskActivity } from './TaskActivity'
 import type { TasksData } from './useTasksData'
 import s from './tasks.module.css'
 
@@ -190,6 +191,8 @@ export function TaskDetails({ task, data, onClose, onSelect }: TaskDetailsProps)
           />
         </Field>
       </div>
+
+      <TaskActivity task={task} subtasks={subtasks} today={data.today} />
 
       {!task.parentId && (
         <div className={s.subtasks}>

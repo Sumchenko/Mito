@@ -1,0 +1,29 @@
+.masonry {
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  column-gap: var(--gap);
+  align-items: start;
+  /* Every item carries the gap below itself; cancel it after the last row. */
+  margin-bottom: calc(-1 * var(--gap));
+}
+/* Laid out: 1px rows, each item spans its measured height. */
+.masonry[data-mode='grid'] {
+  grid-auto-rows: 1px;
+  align-items: stretch;
+}
+.masonry[data-mode='stack'] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.item {
+  min-width: 0;
+  padding-bottom: var(--gap);
+}
+/* The card fills its slot — which is taller than its content only when it is stretched. */
+.masonry[data-mode='grid'] .item {
+  display: flex;
+  flex-direction: column;
+}
+.masonry[data-mode='grid'] .item > * {
+  flex: 1;
+}

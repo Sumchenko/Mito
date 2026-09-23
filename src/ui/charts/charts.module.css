@@ -1,0 +1,247 @@
+/* Shared chart styling: every color comes from theme tokens, so charts follow light/dark
+   and the airy/strict styles without their own palettes. */
+
+.chart {
+  position: relative;
+  width: 100%;
+}
+.chart svg {
+  display: block;
+  overflow: visible;
+}
+
+.grid {
+  stroke: var(--stroke-divider);
+  stroke-dasharray: 2 4;
+}
+.axis {
+  stroke: var(--stroke-divider);
+}
+.tick,
+.label {
+  font-size: 11px;
+  fill: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+.label[data-active='true'] {
+  fill: var(--accent-text);
+  font-weight: 600;
+}
+
+.grow {
+  animation: bar-grow var(--dur-slower) var(--ease-out) both;
+}
+@keyframes bar-grow {
+  from {
+    transform: scaleY(0);
+  }
+}
+.bar {
+  transition: opacity var(--dur-fast) linear;
+}
+.bar[data-dim='true'] {
+  opacity: 0.45;
+}
+.bar[data-muted='true'] {
+  opacity: 0.35;
+}
+.ghost {
+  fill: none;
+  stroke: var(--text-tertiary);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
+  opacity: 0.7;
+}
+.hit {
+  fill: transparent;
+}
+.hit[data-clickable='true'] {
+  cursor: pointer;
+}
+
+.average line {
+  stroke: var(--text-secondary);
+  stroke-dasharray: 5 4;
+  opacity: 0.6;
+}
+.average text {
+  font-size: 11px;
+  fill: var(--text-secondary);
+}
+
+/* Tooltip shared by every chart; positioned at its anchor's top centre. */
+.tip {
+  position: absolute;
+  z-index: 5;
+  transform: translate(-50%, -100%);
+  min-width: 120px;
+  max-width: 260px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  border: 1px solid var(--stroke-divider);
+  box-shadow: var(--shadow-flyout);
+  font-size: 12px;
+  line-height: 17px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* ---------- Rings ---------- */
+.donut {
+  position: relative;
+  flex-shrink: 0;
+}
+.donut svg {
+  display: block;
+}
+.ring-track {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text-primary) 7%, transparent);
+}
+/* No transform-origin here: it would shift the rotate() set by the SVG attribute. */
+.donut-spin {
+  animation: ring-in var(--dur-slower) var(--ease-out) both;
+}
+@keyframes ring-in {
+  from {
+    opacity: 0;
+  }
+}
+.donut-seg {
+  fill: none;
+  transition: opacity var(--dur-fast) linear;
+}
+.donut-seg[data-dim='true'] {
+  opacity: 0.3;
+}
+.donut-seg[data-clickable='true'] {
+  cursor: pointer;
+}
+.gauge-fill {
+  fill: none;
+  animation: gauge-in 700ms var(--ease-out) both;
+}
+@keyframes gauge-in {
+  from {
+    stroke-dasharray: 0 var(--c);
+  }
+}
+.center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  pointer-events: none;
+}
+
+/* ---------- Heat grid (weekday × hour) ---------- */
+.heat-grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto repeat(var(--cols), minmax(0, 1fr));
+  gap: 3px;
+  align-items: center;
+}
+.heat-row {
+  display: contents;
+}
+.heat-row-label,
+.heat-col-label {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+.heat-row-label {
+  padding-right: 6px;
+  text-transform: capitalize;
+}
+.heat-col-label {
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+  overflow: visible;
+}
+.heat-cell,
+.year-cell {
+  aspect-ratio: 1;
+  border-radius: 3px;
+  background: color-mix(
+    in srgb,
+    var(--heat-tint) calc(var(--v) * 100%),
+    color-mix(in srgb, var(--text-primary) 5%, transparent)
+  );
+  transition: box-shadow var(--dur-fast) linear;
+}
+.heat-cell {
+  aspect-ratio: auto;
+  height: 22px;
+}
+.heat-cell[data-active='true'],
+.year-cell:hover {
+  box-shadow: 0 0 0 1.5px var(--text-primary);
+}
+
+/* ---------- Year map (weeks × weekdays) ---------- */
+.year-map {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto repeat(var(--weeks), minmax(0, 1fr));
+  column-gap: 3px;
+  row-gap: 4px;
+}
+.year-month {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  overflow: visible;
+  text-transform: capitalize;
+  height: 14px;
+}
+.year-days,
+.year-week {
+  display: grid;
+  grid-template-rows: repeat(7, auto);
+  gap: 3px;
+}
+/* Labels stretch to the height of the week columns beside them. */
+.year-days {
+  grid-template-rows: repeat(7, minmax(0, 1fr));
+  align-self: stretch;
+}
+.year-days span {
+  display: flex;
+  align-items: center;
+  padding-right: 6px;
+  font-size: 10px;
+  color: var(--text-tertiary);
+  text-transform: capitalize;
+  aspect-ratio: auto;
+}
+.year-days span,
+.year-week > span {
+  min-height: 0;
+}
+.year-week > span:not(.year-cell) {
+  aspect-ratio: 1;
+}
+.year-cell[data-future='true'] {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-primary) 6%, transparent);
+}
+.year-cell[data-today='true'] {
+  box-shadow: 0 0 0 1.5px var(--accent-text);
+}
+.year-cell[data-clickable='true'] {
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .grow,
+  .donut-spin,
+  .gauge-fill {
+    animation: none;
+  }
+}

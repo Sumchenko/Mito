@@ -17,6 +17,7 @@ import { PRIORITY_COLOR } from '@/features/tasks/priority'
 import { TaskTimerButton } from '@/features/timer/TaskTimerButton'
 import { Checkbox } from '@/ui/Checkbox'
 import { daypartOf, Landscape } from '@/ui/Landscape'
+import { formatMinutes } from '@/lib/format'
 import { StatTile } from '@/ui/StatTile'
 import s from './TodayPage.module.css'
 import { useToday } from './useToday'
@@ -68,7 +69,13 @@ export function TodayPage() {
                 <small>{t('today.minutes')}</small>
               </>
             }
-            hint={t('today.tiles.focusTimeHint')}
+            hint={
+              today.usualMs === null
+                ? t('today.tiles.focusTimeHint')
+                : t('today.tiles.focusTimeUsual', {
+                    value: formatMinutes(Math.round(today.usualMs / 60_000), { h: t('common.h'), min: t('common.min') }),
+                  })
+            }
           />
           <StatTile
             icon={<CheckmarkCircle20Regular />}

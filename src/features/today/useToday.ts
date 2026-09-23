@@ -1,7 +1,10 @@
 import { useLiveQuery } from 'dexie-react-hooks'
+import { ACTIVE_DAY_MS, dailyTracked } from '@/analytics'
 import { useMemo } from 'react'
 import {
+  addDays,
   dayRange,
+  startOfLocalDate,
   tasksRepo,
   toLocalDate,
   useNow,
@@ -25,6 +28,9 @@ export function useToday() {
 
   const planned = useTasksPlannedFor(day)
   const entries = useTimeEntries(from, to)
+  // The two weeks before today, to say what a usual day looks like.
+  const historyFrom = useMemo(() => startOfLocalDate(addDays(day, -14)), [day])
+  const history = useTimeEntries(historyFrom, from)
   const blocks = useTimeBlocks(from, to)
   const projects = useProjects(true)
 
@@ -52,7 +58,12 @@ export function useToday() {
       .filter((b) => b.kind === 'task')
       .reduce((sum, b) => sum + clip(b.start, b.end, from, to), 0)
 
+    // A usual day: the average over recent days that had any real work.
+    const active = [...dailyTracked(history ?? [], historyFrom, from, now).values()].filter((ms) => ms >= ACTIVE_DAY_MS)
+    const usualMs = active.length ? active.reduce((a, b) => a + b, 0) / active.length : null
+
     return {
+      usualMs,
       loading: planned === undefined || entries === undefined || blocks === undefined,
       now,
       focusTasks,
@@ -65,5 +76,5 @@ export function useToday() {
       projectById,
       taskById,
     }
-  }, [now, from, to, planned, entries, blocks, projects, blockTasks])
+  }, [now, from, to, planned, entries, blocks, projects, blockTasks, history, historyFrom])
 }

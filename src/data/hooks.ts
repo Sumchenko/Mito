@@ -46,6 +46,10 @@ export const useTimeEntriesOn = (day: LocalDate) => {
   return useTimeEntries(from, to)
 }
 
+/** Entries of a task and, when given, its subtasks. Keyed by the id list's content. */
+export const useTaskEntries = (taskIds: Id[]) =>
+  useLiveQuery(() => timeEntriesRepo.forTasks(taskIds), [taskIds.join()])
+
 export const useTimeBlocks = (from: Timestamp, to: Timestamp) =>
   useLiveQuery(() => timeBlocksRepo.inRange(from, to), [from, to])
 

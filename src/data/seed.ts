@@ -6,7 +6,7 @@ import { projectsRepo } from './repos/projects'
 import { tagsRepo } from './repos/tags'
 import { tasksRepo } from './repos/tasks'
 import { timeBlocksRepo } from './repos/timeBlocks'
-import type { Project, Task, TimeEntry } from './types'
+import type { Project, Task, TimeBlock, TimeEntry } from './types'
 
 const MIN = 60_000
 const HOUR = 60 * MIN
@@ -20,8 +20,8 @@ function rng(seed: number) {
 }
 
 /**
- * Development-only demo data: projects, tasks for today and the coming days, two weeks of
- * tracked history and today's plan. Replaces everything currently stored.
+ * Development-only demo data: projects, tasks for today and the coming days, ten weeks of
+ * tracked history with past plans, and today's plan. Replaces everything currently stored.
  */
 export async function seedDemoData(now = Date.now()) {
   await clearAllData()
@@ -80,52 +80,93 @@ export async function seedDemoData(now = Date.now()) {
   })
   await t('Разобрать входящие', { estimateMin: 15 })
 
-  // Finished work from the past two weeks — most history belongs here, as in real life.
-  const pastTitles: [string, Project][] = [
-    ['Ревью пул-реквестов', work],
-    ['Настроить CI для сервиса', work],
-    ['Созвон с командой', work],
-    ['Лекция по алгоритмам', study],
-    ['Конспект: транзакции в БД', study],
-    ['Пробежка 5 км', health],
-    ['Статья про привычки', growth],
-    ['Английский: сериал без субтитров', growth],
+  // Finished work from the past weeks — most history belongs here, as in real life.
+  const pastTitles: [string, Project, number][] = [
+    ['Ревью пул-реквестов', work, 60],
+    ['Настроить CI для сервиса', work, 120],
+    ['Созвон с командой', work, 45],
+    ['Миграция на новую версию API', work, 240],
+    ['Исправить утечку памяти', work, 90],
+    ['Документация по развёртыванию', work, 60],
+    ['Лекция по алгоритмам', study, 90],
+    ['Конспект: транзакции в БД', study, 60],
+    ['Курс по TypeScript: дженерики', study, 120],
+    ['Задачи на графы', study, 90],
+    ['Пробежка 5 км', health, 40],
+    ['Йога', health, 30],
+    ['Статья про привычки', growth, 45],
+    ['Английский: сериал без субтитров', growth, 60],
+    ['План на месяц', growth, 30],
   ]
+  const HISTORY_DAYS = 70
   const past: Task[] = []
-  for (const [i, [title, project]] of pastTitles.entries()) {
-    const task = await tasksRepo.create({ title, projectId: project.id, plannedDate: addDays(today, -1 - (i % 12)) })
-    const completedAt = startOfLocalDate(task.plannedDate!) + 20 * HOUR
+  for (const [i, [title, project, estimateMin]] of pastTitles.entries()) {
+    const plannedDate = addDays(today, -1 - Math.floor((i * (HISTORY_DAYS - 2)) / pastTitles.length))
+    const task = await tasksRepo.create({ title, projectId: project.id, plannedDate, estimateMin })
+    const completedAt = startOfLocalDate(plannedDate) + 20 * HOUR
     await db.tasks.update(task.id, { status: 'done', completedAt })
     past.push({ ...task, status: 'done', completedAt })
   }
 
-  // Two weeks of history: several non-overlapping sessions per day. Past days go mostly to
-  // finished tasks; today goes to today's plan, so estimates and tracked time look realistic.
-  const pastPool: Task[] = [...past, ...past, postgres, english]
+  // History: on weekdays a plan of two or three task blocks, followed with realistic slack —
+  // some blocks done on time, some later that day, some skipped — plus unplanned sessions.
+  // Weekends are lighter and unplanned. Candidates are trimmed so entries never overlap.
+  const ongoing: Task[] = [postgres, english]
   const todayPool: Task[] = [api, postgres, tests]
   const entries: TimeEntry[] = []
-  for (let d = 14; d >= 0; d--) {
+  const blocks: TimeBlock[] = []
+  const pick = (pool: Task[]) => pool[Math.floor(rand() * pool.length)]!
+  for (let d = HISTORY_DAYS; d >= 0; d--) {
     const day = addDays(today, -d)
-    let cursor = startOfLocalDate(day) + 9 * HOUR + Math.floor(rand() * 60) * MIN
-    const sessions = 3 + Math.floor(rand() * 4)
-    for (let i = 0; i < sessions; i++) {
-      const length = (25 + Math.floor(rand() * 70)) * MIN
-      const end = cursor + length
-      if (end > now) break
-      const pool = d === 0 ? todayPool : pastPool
-      const task = pool[Math.floor(rand() * pool.length)]!
-      const withoutTask = rand() < 0.08
-      entries.push({
-        ...created(cursor),
-        start: cursor,
-        end,
-        source: rand() < 0.3 ? 'pomodoro' : 'timer',
-        ...(withoutTask ? {} : { taskId: task.id }),
-      })
-      cursor = end + (10 + Math.floor(rand() * 80)) * MIN
+    const base = startOfLocalDate(day)
+    const weekend = new Date(base).getDay() % 6 === 0
+    // A finished task is worked on in the week before it was completed, not forever.
+    const recent = past.filter((x) => x.plannedDate! >= day && x.plannedDate! <= addDays(day, 7))
+    // Today's open tasks were started in the last two weeks.
+    const current = d <= 14 ? ongoing : []
+    const pool = d === 0 ? todayPool : recent.length ? [...recent, ...recent, ...current] : ongoing
+    const candidates: { start: number; end: number; taskId?: string; source: TimeEntry['source'] }[] = []
+    const track = (start: number, length: number, taskId?: string) =>
+      candidates.push({ start, end: start + length, source: rand() < 0.3 ? 'pomodoro' : 'timer', ...(taskId ? { taskId } : {}) })
+
+    if (!weekend && d > 0) {
+      const slots = [9 * HOUR + 30 * MIN, 12 * HOUR, 15 * HOUR].slice(0, 2 + Math.floor(rand() * 2))
+      for (const slot of slots) {
+        const task = pick(pool)
+        const length = (60 + Math.floor(rand() * 4) * 15) * MIN
+        blocks.push({ ...created(base), taskId: task.id, start: base + slot, end: base + slot + length, kind: 'task', origin: 'user' })
+        const roll = rand()
+        if (roll < 0.55) track(base + slot + Math.floor(rand() * 20) * MIN, length * (0.6 + rand() * 0.5), task.id)
+        else if (roll < 0.8) track(base + 18 * HOUR + Math.floor(rand() * 90) * MIN, length * (0.5 + rand() * 0.5), task.id)
+      }
+    }
+    // Unplanned sessions: a few on weekdays (and all of today's), fewer at the weekend.
+    const extra = weekend ? Math.floor(rand() * 3) : d === 0 ? 4 : 1 + Math.floor(rand() * 2)
+    for (let i = 0; i < extra; i++) {
+      const start = base + (8 + Math.floor(rand() * 13)) * HOUR + Math.floor(rand() * 4) * 15 * MIN
+      track(start, (25 + Math.floor(rand() * 60)) * MIN, rand() < 0.1 ? undefined : pick(pool).id)
+    }
+
+    let last = 0
+    for (const c of candidates.sort((a, b) => a.start - b.start)) {
+      const start = Math.max(c.start, last + 5 * MIN)
+      const end = Math.min(c.end, now)
+      if (end - start < 10 * MIN) continue
+      entries.push({ ...created(start), start, end, source: c.source, ...(c.taskId ? { taskId: c.taskId } : {}) })
+      last = end
     }
   }
   await db.timeEntries.bulkAdd(entries)
+  await db.timeBlocks.bulkAdd(blocks)
+
+  // Estimates of finished tasks: what the time turned out to be, give or take — mostly
+  // optimistic, as estimates tend to be.
+  const tracked = new Map<string, number>()
+  for (const e of entries) if (e.taskId) tracked.set(e.taskId, (tracked.get(e.taskId) ?? 0) + (e.end! - e.start))
+  for (const task of past) {
+    const minutes = (tracked.get(task.id) ?? 0) / MIN
+    if (minutes > 0) await db.tasks.update(task.id, { estimateMin: Math.max(15, Math.round((minutes * (0.55 + rand() * 0.7)) / 15) * 15) })
+  }
 
   // Today's plan.
   const at = (h: number, m = 0) => startOfLocalDate(today) + h * HOUR + m * MIN
