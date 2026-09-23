@@ -1,8 +1,9 @@
+import { toLocalDate } from '../dates'
 import { db } from '../db'
 import { DomainError } from '../errors'
 import { alive, created } from '../meta'
 import type { Id, TimeBlock, TimeBlockKind, Timestamp } from '../types'
-import { requireAlive } from './common'
+import { done, requireAlive } from './common'
 
 export interface TimeBlockInput {
   taskId?: Id
@@ -11,6 +12,20 @@ export interface TimeBlockInput {
   end: Timestamp
   kind?: TimeBlockKind
   origin?: TimeBlock['origin']
+}
+
+/**
+ * Scheduling a task in the calendar decides the day it is done on: the task's plannedDate
+ * follows its block, so task lists and the calendar never disagree.
+ */
+function planTaskOn(taskId: Id | undefined, start: Timestamp) {
+  if (!taskId) return done()
+  const day = toLocalDate(start)
+  return db.tasks.get(taskId).then((task) => {
+    if (alive(task) && task.plannedDate !== day) {
+      return db.tasks.update(taskId, { plannedDate: day, updatedAt: Date.now() }).then(() => undefined)
+    }
+  })
 }
 
 function checkInterval(start: Timestamp, end: Timestamp) {
@@ -38,6 +53,7 @@ export const timeBlocksRepo = {
         ...(title ? { title } : {}),
       }
       await db.timeBlocks.add(block)
+      await planTaskOn(block.taskId, block.start)
       return block
     })
   },
@@ -66,6 +82,7 @@ export const timeBlocksRepo = {
       if (!taskId && !title) throw new DomainError('invalid', 'A block needs a task or a title')
 
       await db.timeBlocks.update(id, changes)
+      if (taskId && (changes.start !== block.start || patch.taskId)) await planTaskOn(taskId, start)
     })
   },
 

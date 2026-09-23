@@ -1,5 +1,6 @@
 import { createBrowserRouter } from 'react-router'
-import { CalendarPage, MentorPage, StatsPage } from '@/features/placeholders'
+import { CalendarPage } from '@/features/calendar/CalendarPage'
+import { MentorPage, StatsPage } from '@/features/placeholders'
 import { SettingsPage } from '@/features/settings/SettingsPage'
 import { TasksPage } from '@/features/tasks/TasksPage'
 import { FocusPage } from '@/features/timer/FocusPage'

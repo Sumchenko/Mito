@@ -197,6 +197,16 @@ describe('time blocks', () => {
     expect(block.kind).toBe('event')
   })
 
+  it('scheduling a task sets its planned day, and moving the block moves it', async () => {
+    const task = await tasksRepo.create({ title: 'Plan me', plannedDate: '2020-01-01' })
+    const day = (ts: number) => toLocalDate(ts)
+    const block = await timeBlocksRepo.create({ taskId: task.id, start: base, end: base + 60 * MIN })
+    expect((await tasksRepo.get(task.id))?.plannedDate).toBe(day(base))
+    const nextDay = base + 24 * 60 * MIN
+    await timeBlocksRepo.update(block.id, { start: nextDay, end: nextDay + 60 * MIN })
+    expect((await tasksRepo.get(task.id))?.plannedDate).toBe(day(nextDay))
+  })
+
   it('may overlap — plans are intentions, not facts', async () => {
     await timeBlocksRepo.create({ title: 'A', start: base, end: base + 60 * MIN })
     await timeBlocksRepo.create({ title: 'B', start: base + 30 * MIN, end: base + 90 * MIN })
