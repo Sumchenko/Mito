@@ -18,6 +18,8 @@ export const useProjects = (includeArchived = false) =>
 
 export const useTags = () => useLiveQuery(() => tagsRepo.list(), [])
 
+export const useAllTasks = () => useLiveQuery(() => tasksRepo.listAll(), [])
+
 export const useTask = (id: Id | undefined) =>
   useLiveQuery(() => (id ? tasksRepo.get(id) : undefined), [id])
 

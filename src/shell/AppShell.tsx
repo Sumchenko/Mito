@@ -26,7 +26,8 @@ export function AppShell() {
       {!mobile && <NavPane compact={navCollapsed || narrow} />}
       <main className={s.content}>
         <AnimatePresence mode="wait" initial={false}>
-          {isValidElement(outlet) && cloneElement(outlet, { key: location.pathname })}
+          {/* Keyed by section so in-section navigation (e.g. between task lists) keeps state. */}
+          {isValidElement(outlet) && cloneElement(outlet, { key: location.pathname.split('/')[1] })}
         </AnimatePresence>
       </main>
       {mobile && <NavPane compact bottom />}

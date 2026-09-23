@@ -186,6 +186,11 @@ export const tasksRepo = {
 
   // ---------- Queries ----------
 
+  /** All live tasks. Lists are derived in memory — cheap at personal-task scale. */
+  async listAll(): Promise<Task[]> {
+    return (await db.tasks.orderBy('order').toArray()).filter(alive)
+  },
+
   async listPlannedFor(day: LocalDate): Promise<Task[]> {
     const tasks = await db.tasks.where('plannedDate').equals(day).filter(alive).toArray()
     return tasks.sort((a, b) => a.order - b.order)

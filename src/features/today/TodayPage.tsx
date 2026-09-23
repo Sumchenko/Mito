@@ -1,5 +1,4 @@
 import {
-  Checkmark12Filled,
   CheckmarkCircle20Regular,
   DataTrending20Regular,
   Send20Filled,
@@ -10,8 +9,12 @@ import {
 import { AnimatePresence, motion } from 'motion/react'
 import type { CSSProperties } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router'
 import { tasksRepo, type Project, type Task, type TimeBlock } from '@/data'
 import { pageTransition, springFirm } from '@/design/motion'
+import { listPath } from '@/features/tasks/paths'
+import { PRIORITY_COLOR } from '@/features/tasks/priority'
+import { Checkbox } from '@/ui/Checkbox'
 import { daypartOf, Landscape } from '@/ui/Landscape'
 import { StatTile } from '@/ui/StatTile'
 import s from './TodayPage.module.css'
@@ -150,19 +153,17 @@ function FocusTask({ task, project }: { task: Task; project?: Project }) {
       exit={{ opacity: 0 }}
       transition={springFirm}
     >
-      <button
-        type="button"
-        role="checkbox"
-        aria-checked={done}
-        aria-label={task.title}
-        className={s.check}
-        onClick={() => tasksRepo.setStatus(task.id, done ? 'open' : 'done')}
-      >
-        {done && <Checkmark12Filled />}
-      </button>
+      <Checkbox
+        checked={done}
+        label={task.title}
+        color={PRIORITY_COLOR[task.priority]}
+        onChange={(checked) => void tasksRepo.setStatus(task.id, checked ? 'done' : 'open')}
+      />
       <span className={s.dot} style={{ background: tint(project) }} />
       <span className={s.taskText}>
-        <span className={s.taskTitle}>{task.title}</span>
+        <Link to={listPath('today', task.id)} className={s.taskTitle}>
+          {task.title}
+        </Link>
         {project && <span className={s.taskProject}>{project.name}</span>}
       </span>
       {task.estimateMin && (
