@@ -203,6 +203,13 @@ export const en: Messages = {
     unscheduledHint: 'Drag a task into the calendar to give it time.',
     unscheduledEmpty: 'Everything for these days is scheduled.',
     noTask: 'No task',
+    zoom: {
+      title: 'Semantic zoom',
+      open: 'Zoom · prototype',
+      back: 'Back to calendar',
+      hint: 'Ctrl + wheel or pinch to zoom · drag to move · double-click to zoom into a day',
+      stops: { day: 'Day', '3days': '3 days', week: 'Week', month: 'Month', year: 'Year' },
+    },
   },
   errors: {
     not_found: 'Record not found.',

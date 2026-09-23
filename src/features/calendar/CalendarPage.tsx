@@ -2,7 +2,7 @@ import { ChevronLeft20Regular, ChevronRight20Regular } from '@fluentui/react-ico
 import { motion } from 'motion/react'
 import { useCallback, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useSearchParams } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { addDays, isLocalDate, toLocalDate, useNow, type LocalDate } from '@/data'
@@ -92,6 +92,9 @@ export function CalendarPage() {
           <Button variant="subtle" iconOnly icon={<ChevronRight20Regular />} aria-label={t('calendar.next')} onClick={() => step(1)} />
           <h1 className={s.title}>{title}</h1>
         </div>
+        <Link to="/calendar/zoom" className={s.zoomLink}>
+          {t('calendar.zoom.open')}
+        </Link>
         {!narrow && (
           <Segmented<CalendarView>
             aria-label={t('nav.calendar')}

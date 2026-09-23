@@ -553,3 +553,15 @@
     --gutter: 44px;
   }
 }
+
+.zoom-link {
+  margin-left: auto;
+  font-size: var(--text-caption);
+  font-weight: 600;
+  color: var(--accent-text);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.zoom-link:hover {
+  text-decoration: underline;
+}
