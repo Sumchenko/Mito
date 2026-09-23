@@ -19,3 +19,6 @@ export function kindTint(kind: TimeBlockKind) {
  * during dragover, and the grid needs the estimate to preview the block's length.
  */
 export const draggedTask: { current: Task | null } = { current: null }
+export const setDraggedTask = (task: Task | null) => {
+  draggedTask.current = task
+}

@@ -4,14 +4,14 @@ import { useTranslation } from 'react-i18next'
 import type { LocalDate, Task } from '@/data'
 import { formatDay, formatMinutes } from '@/lib/format'
 import { draggedTask } from './colors'
-import type { CalendarData } from './useCalendarData'
+import type { CalendarLookup } from './zoom/useZoomData'
 import s from './calendar.module.css'
 
 /**
  * Open tasks planned for the visible days that have no block yet, plus undated ones.
  * Drag one onto the grid to give it time.
  */
-export function UnscheduledPanel({ days, today, data }: { days: LocalDate[]; today: LocalDate; data: CalendarData }) {
+export function UnscheduledPanel({ days, today, data }: { days: LocalDate[]; today: LocalDate; data: CalendarLookup }) {
   const { t, i18n } = useTranslation()
 
   const { planned, undated } = useMemo(() => {

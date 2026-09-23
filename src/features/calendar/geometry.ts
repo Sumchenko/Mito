@@ -1,9 +1,8 @@
 import { addDays, startOfLocalDate, type LocalDate, type Timestamp } from '@/data'
 
 /*
- * Calendar geometry: pure mapping between time and pixels. The view is described by a
- * continuous model — first visible day, number of days, pixels per hour — so the semantic
- * zoom (stage 5) can animate these numbers instead of switching between hard-coded layouts.
+ * Calendar time geometry: wall-clock minutes within a day, DST-safe moments, snapping and the
+ * side-by-side layout of overlapping blocks. Screen mapping lives in zoom/camera.ts.
  */
 
 export const MIN = 60_000
@@ -11,23 +10,6 @@ export const HOUR = 60 * MIN
 export const DAY_MIN = 24 * 60
 /** Every drag snaps to this grid. */
 export const SNAP_MIN = 15
-
-export type CalendarView = 'day' | '3days' | 'week'
-export const VIEW_DAYS: Record<CalendarView, number> = { day: 1, '3days': 3, week: 7 }
-
-/** Monday-based week start (ISO), as used in RU locale. */
-export function startOfWeek(day: LocalDate): LocalDate {
-  const [y, m, d] = day.split('-').map(Number) as [number, number, number]
-  const weekday = new Date(y, m - 1, d).getDay() // 0 = Sunday
-  return addDays(day, -((weekday + 6) % 7))
-}
-
-/** First visible day for a view that should contain `focus`. */
-export const viewStart = (view: CalendarView, focus: LocalDate) =>
-  view === 'week' ? startOfWeek(focus) : focus
-
-export const daysFrom = (first: LocalDate, count: number) =>
-  Array.from({ length: count }, (_, i) => addDays(first, i))
 
 /** The moment `minutes` after local midnight of `day`. DST-safe: built from calendar parts. */
 export function atMinutes(day: LocalDate, minutes: number): Timestamp {
@@ -58,15 +40,6 @@ export function dayPart(start: Timestamp, end: Timestamp, day: LocalDate) {
 export const snap = (minutes: number, step = SNAP_MIN) => Math.round(minutes / step) * step
 
 export const clampMinutes = (minutes: number) => Math.min(DAY_MIN, Math.max(0, minutes))
-
-export const minutesToPx = (minutes: number, hourPx: number) => (minutes / 60) * hourPx
-export const pxToMinutes = (px: number, hourPx: number) => (px / hourPx) * 60
-
-/** Day under a horizontal position inside the columns area. */
-export function dayAtX(x: number, width: number, days: LocalDate[]): LocalDate {
-  const i = Math.min(days.length - 1, Math.max(0, Math.floor((x / width) * days.length)))
-  return days[i]!
-}
 
 export interface Lane {
   lane: number

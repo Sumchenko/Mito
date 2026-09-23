@@ -2,16 +2,26 @@ import { Delete16Regular, Open16Regular, Sparkle16Regular } from '@fluentui/reac
 import { useMemo, useState, type CSSProperties } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
-import { DomainError, timeBlocksRepo, type TimeBlock, type TimeBlockKind, type Timestamp } from '@/data'
+import {
+  DomainError,
+  timeBlocksRepo,
+  timeEntriesRepo,
+  type Task,
+  type TimeBlock,
+  type TimeBlockKind,
+  type TimeEntry,
+  type Timestamp,
+} from '@/data'
 import { projectList } from '@/features/tasks/lists'
 import { listPath } from '@/features/tasks/paths'
+import { TaskPicker } from '@/features/timer/TaskPicker'
 import { TaskTimerButton } from '@/features/timer/TaskTimerButton'
 import { formatMinutes } from '@/lib/format'
 import { Button } from '@/ui/Button'
 import { Popover } from '@/ui/Popover'
 import { kindTint } from './colors'
 import { MIN } from './geometry'
-import type { CalendarData } from './useCalendarData'
+import type { CalendarLookup } from './zoom/useZoomData'
 import s from './calendar.module.css'
 
 const KINDS: Exclude<TimeBlockKind, 'task'>[] = ['event', 'break', 'routine']
@@ -30,7 +40,7 @@ interface DraftProps {
   anchor: DOMRect
   start: Timestamp
   end: Timestamp
-  data: CalendarData
+  data: CalendarLookup
   onClose: () => void
 }
 
@@ -161,13 +171,30 @@ export function DraftPopover({ anchor, start, end, data, onClose }: DraftProps) 
 interface BlockProps {
   anchor: DOMRect
   block: TimeBlock
-  data: CalendarData
+  data: CalendarLookup
   onClose: () => void
+}
+
+/** "Open task" jumps to the list that holds the task (its parent's, for a subtask). */
+function OpenTaskButton({ task, data }: { task: Task; data: CalendarLookup }) {
+  const { t } = useTranslation()
+  const navigate = useNavigate()
+  return (
+    <Button
+      variant="subtle"
+      icon={<Open16Regular />}
+      onClick={() => {
+        const owner = task.parentId ? data.taskById.get(task.parentId) ?? task : task
+        navigate(listPath(owner.projectId ? projectList(owner.projectId) : 'inbox', task.id))
+      }}
+    >
+      {t('calendar.openTask')}
+    </Button>
+  )
 }
 
 export function BlockPopover({ anchor, block, data, onClose }: BlockProps) {
   const { t } = useTranslation()
-  const navigate = useNavigate()
   const range = useTimeRange()
   const task = block.taskId ? data.taskById.get(block.taskId) : undefined
   const project = data.projectOf(task)
@@ -221,18 +248,7 @@ export function BlockPopover({ anchor, block, data, onClose }: BlockProps) {
 
       <div className={s.popActions}>
         {task && task.status === 'open' && <TaskTimerButton taskId={task.id} />}
-        {task && (
-          <Button
-            variant="subtle"
-            icon={<Open16Regular />}
-            onClick={() => {
-              const owner = task.parentId ? data.taskById.get(task.parentId) ?? task : task
-              navigate(listPath(owner.projectId ? projectList(owner.projectId) : 'inbox', task.id))
-            }}
-          >
-            {t('calendar.openTask')}
-          </Button>
-        )}
+        {task && <OpenTaskButton task={task} data={data} />}
         <Button
           variant="subtle"
           icon={<Delete16Regular />}
@@ -249,3 +265,63 @@ export function BlockPopover({ anchor, block, data, onClose }: BlockProps) {
   )
 }
 
+
+interface EntryProps {
+  anchor: DOMRect
+  entry: TimeEntry
+  data: CalendarLookup
+  now: Timestamp
+  onClose: () => void
+}
+
+/** A piece of the fact track: what was actually worked on, and when. */
+export function EntryPopover({ anchor, entry, data, now, onClose }: EntryProps) {
+  const { t } = useTranslation()
+  const range = useTimeRange()
+  const task = entry.taskId ? data.taskById.get(entry.taskId) : undefined
+  const project = data.projectOf(task)
+  const running = entry.end === null
+
+  return (
+    <Popover anchor={anchor} onClose={onClose} label={task?.title ?? t('calendar.noTask')}>
+      <div className={s.popHead}>
+        <span className={s.popKicker} style={{ color: project ? `var(--tint-${project.color})` : undefined }}>
+          {t('calendar.fact')}
+          {project && ` · ${project.name}`}
+        </span>
+        <span className={s.popTime}>
+          {range(entry.start, entry.end ?? now)}
+          {running && ` · ${t('calendar.running')}`}
+        </span>
+      </div>
+
+      {task ? (
+        <p className={s.popTitle}>{task.title}</p>
+      ) : (
+        <>
+          <p className={s.popNote}>{t('calendar.entryNoTask')}</p>
+          <TaskPicker value={undefined} onChange={(id) => id && void timeEntriesRepo.update(entry.id, { taskId: id })} />
+        </>
+      )}
+      {entry.note && <p className={s.popNote}>{entry.note}</p>}
+
+      <div className={s.popActions}>
+        {task && task.status === 'open' && <TaskTimerButton taskId={task.id} />}
+        {task && <OpenTaskButton task={task} data={data} />}
+        {!running && (
+          <Button
+            variant="subtle"
+            icon={<Delete16Regular />}
+            className={s.popDelete}
+            onClick={() => {
+              onClose()
+              void timeEntriesRepo.remove(entry.id)
+            }}
+          >
+            {t('calendar.deleteEntry')}
+          </Button>
+        )}
+      </div>
+    </Popover>
+  )
+}

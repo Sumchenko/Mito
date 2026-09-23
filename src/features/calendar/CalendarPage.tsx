@@ -1,52 +1,67 @@
-import { ChevronLeft20Regular, ChevronRight20Regular } from '@fluentui/react-icons'
+import { ChevronLeft20Regular, ChevronRight20Regular, ColumnDoubleCompareRegular } from '@fluentui/react-icons'
 import { motion } from 'motion/react'
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, useSearchParams } from 'react-router'
+import { useSearchParams } from 'react-router'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { addDays, isLocalDate, toLocalDate, useNow, type LocalDate } from '@/data'
+import { isLocalDate, toLocalDate, type LocalDate } from '@/data'
 import { pageTransition } from '@/design/motion'
 import { useMediaQuery } from '@/lib/useMediaQuery'
 import { Button } from '@/ui/Button'
 import { Segmented } from '@/ui/Segmented'
-import { CalendarGrid } from './CalendarGrid'
-import { daysFrom, VIEW_DAYS, viewStart, type CalendarView } from './geometry'
 import { UnscheduledPanel } from './UnscheduledPanel'
-import { useCalendarData } from './useCalendarData'
+import { dayToCell, STOPS, type Stop } from './zoom/camera'
+import { useZoomData } from './zoom/useZoomData'
+import { ZoomCalendar, type ZoomApi, type ZoomView } from './zoom/ZoomCalendar'
 import s from './calendar.module.css'
 
-/** Remembered view preference; the date itself lives in the URL (?date=&view=). */
-const useCalendarPrefs = create<{ view: CalendarView }>()(
-  persist(() => ({ view: 'week' as CalendarView }), { name: 'mito.calendar', version: 1 }),
+const STOP_LIST = Object.keys(STOPS) as Stop[]
+const isStop = (v: string | null): v is Stop => v !== null && v in STOPS
+
+/** Remembered zoom level and fact layout; the date lives in the URL (?date=&view=). */
+interface CalendarPrefs {
+  stop: Stop
+  factOpen: boolean
+}
+const useCalendarPrefs = create<CalendarPrefs>()(
+  persist((): CalendarPrefs => ({ stop: 'week', factOpen: false }), { name: 'mito.calendar', version: 2 }),
 )
+const toggleFact = () => useCalendarPrefs.setState((st) => ({ factOpen: !st.factOpen }))
 
-const HOUR_PX: Record<CalendarView, number> = { day: 64, '3days': 56, week: 48 }
-
+/**
+ * The calendar is one semantic-zoom surface: from a single day with editable blocks out to a
+ * whole year of heat cells. The toolbar names the stops; the camera can rest anywhere between.
+ */
 export function CalendarPage() {
   const { t, i18n } = useTranslation()
   const [params, setParams] = useSearchParams()
   const narrow = useMediaQuery('(max-width: 640px)')
-  const now = useNow(30_000)
-  const today = toLocalDate(now)
+  const today = toLocalDate()
+  const savedStop = useCalendarPrefs((st) => st.stop)
+  const factOpen = useCalendarPrefs((st) => st.factOpen)
 
-  const saved = useCalendarPrefs((st) => st.view)
-  const urlView = params.get('view')
-  const view: CalendarView = narrow ? 'day' : urlView && urlView in VIEW_DAYS ? (urlView as CalendarView) : saved
-  const urlDate = params.get('date')
-  const focus: LocalDate = isLocalDate(urlDate) ? urlDate : today
+  // Read the URL once: afterwards the camera is the source of truth and writes back.
+  const [initial] = useState(() => {
+    const date = params.get('date')
+    const view = params.get('view')
+    return {
+      day: isLocalDate(date) ? date : today,
+      stop: narrow ? ('day' as Stop) : isStop(view) ? view : savedStop,
+    }
+  })
+  const [api, setApi] = useState<ZoomApi | null>(null)
+  const [view, setView] = useState<ZoomView>({ stop: initial.stop, center: initial.day, days: [initial.day] })
 
-  const days = useMemo(() => daysFrom(viewStart(view, focus), VIEW_DAYS[view]), [view, focus])
-  const data = useCalendarData(days)
-
-  const go = useCallback(
-    (next: { date?: LocalDate; view?: CalendarView }) => {
-      if (next.view) useCalendarPrefs.setState({ view: next.view })
+  const onView = useCallback(
+    (next: ZoomView) => {
+      setView(next)
+      useCalendarPrefs.setState({ stop: next.stop })
       setParams(
         (prev) => {
           const p = new URLSearchParams(prev)
-          if (next.date) p.set('date', next.date)
-          if (next.view) p.set('view', next.view)
+          p.set('date', next.center)
+          p.set('view', next.stop)
           return p
         },
         { replace: true },
@@ -55,68 +70,94 @@ export function CalendarPage() {
     [setParams],
   )
 
-  const step = (dir: 1 | -1) => go({ date: addDays(focus, dir * VIEW_DAYS[view]) })
-
-  // T — today, ← → — previous/next period.
+  // T — today, F — plan & fact, PageUp/PageDown — previous/next period (arrows move the camera).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.ctrlKey || e.metaKey || e.altKey) return
-      if (e.key === 't' || e.key === 'е') go({ date: today })
-      else if (e.key === 'ArrowLeft') go({ date: addDays(focus, -VIEW_DAYS[view]) })
-      else if (e.key === 'ArrowRight') go({ date: addDays(focus, VIEW_DAYS[view]) })
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      if (e.ctrlKey || e.metaKey || e.altKey) return
+      if (e.key === 't' || e.key === 'е') api?.today()
+      else if (e.key === 'f' || e.key === 'а') toggleFact()
+      else if (e.key === 'PageUp') api?.step(-1)
+      else if (e.key === 'PageDown') api?.step(1)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [go, focus, view, today])
+  }, [api])
 
   const title = useMemo(() => {
-    const first = new Date(`${days[0]}T12:00`)
-    const last = new Date(`${days[days.length - 1]}T12:00`)
-    if (days.length === 1) {
-      return first.toLocaleDateString(i18n.language, { weekday: 'long', day: 'numeric', month: 'long' })
+    const date = (d: LocalDate) => new Date(`${d}T12:00`)
+    const f = (d: Date, o: Intl.DateTimeFormatOptions) => d.toLocaleDateString(i18n.language, o)
+    const center = date(view.center)
+    switch (view.stop) {
+      case 'day':
+        return f(center, { weekday: 'long', day: 'numeric', month: 'long' })
+      case 'year':
+        return String(center.getFullYear())
+      case 'month':
+        return f(center, { month: 'long', year: 'numeric' })
+      default: {
+        const first = date(view.days[0]!)
+        const last = date(view.days[view.days.length - 1]!)
+        const sameMonth = first.getMonth() === last.getMonth()
+        const from = f(first, sameMonth ? { day: 'numeric' } : { day: 'numeric', month: 'short' })
+        return `${from} – ${f(last, { day: 'numeric', month: 'long', year: 'numeric' })}`
+      }
     }
-    const sameMonth = first.getMonth() === last.getMonth()
-    const from = first.toLocaleDateString(i18n.language, sameMonth ? { day: 'numeric' } : { day: 'numeric', month: 'short' })
-    const to = last.toLocaleDateString(i18n.language, { day: 'numeric', month: 'long', year: 'numeric' })
-    return `${from} – ${to}`
-  }, [days, i18n.language])
+  }, [view, i18n.language])
+
+  // The side panel works on what is on screen; its query shares the calendar's cached range.
+  const rows = view.days.map((d) => dayToCell(d).row)
+  const lookup = useZoomData(Math.min(...rows), Math.max(...rows), t('calendar.noTask'))
 
   return (
     <motion.div className={s.page} {...pageTransition}>
       <header className={s.toolbar}>
         <div className={s.nav}>
-          <Button onClick={() => go({ date: today })} disabled={days.includes(today)}>
-            {t('calendar.today')}
-          </Button>
-          <Button variant="subtle" iconOnly icon={<ChevronLeft20Regular />} aria-label={t('calendar.prev')} onClick={() => step(-1)} />
-          <Button variant="subtle" iconOnly icon={<ChevronRight20Regular />} aria-label={t('calendar.next')} onClick={() => step(1)} />
+          <Button onClick={() => api?.today()}>{t('calendar.today')}</Button>
+          <Button
+            variant="subtle"
+            iconOnly
+            icon={<ChevronLeft20Regular />}
+            aria-label={t('calendar.prev')}
+            onClick={() => api?.step(-1)}
+          />
+          <Button
+            variant="subtle"
+            iconOnly
+            icon={<ChevronRight20Regular />}
+            aria-label={t('calendar.next')}
+            onClick={() => api?.step(1)}
+          />
           <h1 className={s.title}>{title}</h1>
         </div>
-        <Link to="/calendar/zoom" className={s.zoomLink}>
-          {t('calendar.zoom.open')}
-        </Link>
-        {!narrow && (
-          <Segmented<CalendarView>
-            aria-label={t('nav.calendar')}
-            value={view}
-            options={(['day', '3days', 'week'] as const).map((v) => ({ value: v, label: t(`calendar.views.${v}`) }))}
-            onChange={(v) => go({ view: v })}
+        <div className={s.tools}>
+          <Button
+            variant="subtle"
+            icon={<ColumnDoubleCompareRegular />}
+            className={s.factToggle}
+            aria-pressed={factOpen}
+            title={t('calendar.planFactHint')}
+            onClick={toggleFact}
+          >
+            {!narrow && t('calendar.planFact')}
+          </Button>
+          <Segmented<Stop>
+          aria-label={t('nav.calendar')}
+          value={view.stop}
+          options={STOP_LIST.filter((st) => !narrow || st !== '3days').map((st) => ({
+            value: st,
+            label: t(`calendar.zoom.stops.${st}`),
+          }))}
+            onChange={(st) => api?.goToStop(st)}
           />
-        )}
+        </div>
       </header>
 
       <div className={s.layout}>
         <div className={s.card}>
-          <CalendarGrid
-            days={days}
-            hourPx={HOUR_PX[view]}
-            data={data}
-            today={today}
-            now={now}
-            onDayClick={(day) => go({ date: day, view: 'day' })}
-          />
+          <ZoomCalendar initial={initial} factOpen={factOpen} onApi={setApi} onView={onView} />
         </div>
-        <UnscheduledPanel days={days} today={today} data={data} />
+        <UnscheduledPanel days={view.days} today={today} data={lookup} />
       </div>
     </motion.div>
   )

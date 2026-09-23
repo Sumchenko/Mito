@@ -10,6 +10,46 @@
 .root:active {
   cursor: grabbing;
 }
+/* At timeline zoom the surface is for editing: empty space creates blocks. */
+.root[data-interactive='true'],
+.root[data-interactive='true']:active {
+  cursor: default;
+}
+
+.ghost {
+  position: absolute;
+  left: 2px;
+  right: calc(var(--fact-w) + 4px);
+  z-index: 3;
+  padding: 3px 6px;
+  overflow: hidden;
+  border-radius: 5px;
+  border: 1.5px dashed var(--accent);
+  background: var(--accent-subtle);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent-text);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.ghost[data-solid='true'] {
+  border: 0;
+  border-left: 3px solid var(--block);
+  background: color-mix(in srgb, var(--block) 26%, var(--bg-card));
+  color: var(--text-primary);
+  box-shadow: var(--shadow-flyout);
+}
+.fact-item[data-running='true'] {
+  animation: fact-pulse 2.4s ease-in-out infinite;
+}
+@keyframes fact-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+.tile[data-drop='true'] {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
 
 /* World area: right of the gutter, below the header. Tiles are translated inside it. */
 .world {
@@ -62,19 +102,26 @@
 .block {
   --block: var(--tint-blue);
   position: absolute;
-  left: 0;
-  right: 0;
   overflow: hidden;
-  border-radius: 4px;
+  border-radius: 5px;
   border-left: 3px solid var(--block);
-  background: color-mix(in srgb, var(--block) 20%, var(--bg-card));
+  background: color-mix(in srgb, var(--block) 18%, var(--bg-card));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--block) 16%, transparent);
+  /* Lets the time line show only when the block is tall enough (see @container below). */
+  container-type: size;
+}
+.root[data-interactive='true'] .block {
+  cursor: grab;
+}
+.root[data-interactive='true'] .block:hover {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--block) 45%, transparent);
 }
 .block[data-kind='break'] {
   background: var(--bg-subtle-hover);
 }
 .block-title {
   display: block;
-  padding: 3px 6px;
+  padding: 3px 6px 0;
   font-size: 12px;
   line-height: 15px;
   font-weight: 600;
@@ -83,6 +130,40 @@
   text-overflow: ellipsis;
   opacity: var(--text-o);
 }
+.block-time {
+  display: none;
+  padding: 0 6px;
+  font-size: 11px;
+  line-height: 13px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  opacity: var(--text-o);
+}
+@container (min-height: 36px) {
+  .block-time {
+    display: block;
+  }
+}
+.edge-top,
+.edge-bottom {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 6px;
+  z-index: 1;
+}
+.edge-top {
+  top: 0;
+}
+.edge-bottom {
+  bottom: 0;
+}
+.root[data-interactive='true'] .edge-top,
+.root[data-interactive='true'] .edge-bottom {
+  cursor: ns-resize;
+}
+
 .fact {
   position: absolute;
   top: 0;
@@ -235,6 +316,14 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  transition: background-color var(--dur-fast) linear;
+}
+.head-cell:hover {
+  background: var(--bg-subtle-hover);
 }
 .head-weekday {
   font-size: var(--text-caption);
@@ -307,4 +396,194 @@
   .hint {
     display: none;
   }
+}
+
+/* ================= Fact track: hover & click ================= */
+.root[data-interactive='true'] .fact-item {
+  cursor: pointer;
+}
+/* A wider invisible hit area than the thin bar itself. */
+.fact-item::before {
+  content: '';
+  position: absolute;
+  inset: 0 -3px;
+}
+.root[data-interactive='true'] .fact-item:hover {
+  opacity: 1;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--block) 35%, transparent);
+}
+.fact-tip {
+  position: absolute;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-width: 240px;
+  padding: 6px 10px;
+  border-radius: var(--radius-md, 6px);
+  background: var(--bg-flyout, var(--bg-card));
+  box-shadow: var(--shadow-flyout);
+  border: 1px solid var(--stroke-divider);
+  pointer-events: none;
+}
+.fact-tip-title {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fact-tip-time {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Planned for a day without a time: hollow dot in the summary. */
+.titles li[data-dated] > span {
+  box-sizing: border-box;
+  border: 1.5px solid;
+  background: transparent;
+}
+
+/* ================= Dropping a task while zoomed out ================= */
+.drop-hint {
+  position: absolute;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md, 6px);
+  background: var(--bg-flyout, var(--bg-card));
+  border: 1px solid var(--stroke-divider);
+  box-shadow: var(--shadow-flyout);
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.drop-hint b {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.drop-hint b::first-letter {
+  text-transform: uppercase;
+}
+.drop-hold {
+  position: relative;
+  padding-bottom: 5px;
+  color: var(--text-tertiary);
+}
+.drop-hold i {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: 100%;
+  border-radius: 1px;
+  background: var(--accent);
+  transform-origin: left;
+  animation: drop-hold 700ms linear forwards;
+}
+@keyframes drop-hold {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* ================= Plan | Fact columns ================= */
+/* The fact strip widens into a column; the plan makes room. Both animate. */
+.plan,
+.fact,
+.ghost {
+  transition:
+    right var(--dur-normal, 200ms) var(--ease-standard, ease),
+    width var(--dur-normal, 200ms) var(--ease-standard, ease);
+}
+.root[data-fact='open'] .plan,
+.root[data-fact='open'] .ghost {
+  right: calc(42% + 2px);
+}
+.root[data-fact='open'] .fact {
+  width: calc(42% - 4px);
+}
+.fact-title,
+.fact-time {
+  display: none;
+}
+.root[data-fact='open'] .fact-item {
+  overflow: hidden;
+  border-radius: 5px;
+  border-left: 3px solid var(--block);
+  /* Fact reads as "done": a denser tint than plan blocks, with a faint hatch. */
+  background:
+    repeating-linear-gradient(
+      -45deg,
+      transparent 0 6px,
+      color-mix(in srgb, var(--block) 10%, transparent) 6px 7px
+    ),
+    color-mix(in srgb, var(--block) 30%, var(--bg-card));
+  opacity: 1;
+  container-type: size;
+}
+.root[data-fact='open'] .fact-item[data-running='true'] {
+  animation: none;
+  border-left-style: dashed;
+}
+.root[data-fact='open'] .fact-title {
+  display: block;
+  padding: 3px 6px 0;
+  font-size: 12px;
+  line-height: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: var(--text-o);
+}
+.root[data-fact='open'] .fact-time {
+  padding: 0 6px;
+  font-size: 11px;
+  line-height: 13px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  opacity: var(--text-o);
+}
+@container (min-height: 36px) {
+  .root[data-fact='open'] .fact-time {
+    display: block;
+  }
+}
+/* A faint divider between the plan and the fact columns. */
+.root[data-fact='open'] .fact::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -3px;
+  border-left: 1px dashed var(--stroke-divider);
+}
+/* "Plan | Fact" captions along the bottom of a wide day header. */
+.head-columns {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 2px;
+  display: grid;
+  grid-template-columns: 58% 42%;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+.head-columns > span {
+  padding-left: 8px;
+  text-align: left;
 }
