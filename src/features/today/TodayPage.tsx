@@ -1,4 +1,5 @@
 import {
+  Checkmark12Filled,
   CheckmarkCircle20Regular,
   DataTrending20Regular,
   Send20Filled,
@@ -6,12 +7,15 @@ import {
   Target20Regular,
   Timer20Regular,
 } from '@fluentui/react-icons'
-import { motion } from 'motion/react'
+import { AnimatePresence, motion } from 'motion/react'
+import type { CSSProperties } from 'react'
 import { useTranslation } from 'react-i18next'
-import { pageTransition } from '@/design/motion'
+import { tasksRepo, type Project, type Task, type TimeBlock } from '@/data'
+import { pageTransition, springFirm } from '@/design/motion'
 import { daypartOf, Landscape } from '@/ui/Landscape'
 import { StatTile } from '@/ui/StatTile'
 import s from './TodayPage.module.css'
+import { useToday } from './useToday'
 
 function greetingKey(hour: number) {
   if (hour < 5) return 'today.greetingNight' as const
@@ -20,16 +24,20 @@ function greetingKey(hour: number) {
   return 'today.greetingEvening' as const
 }
 
-// Values are zero until the data layer (stage 1) and timer (stage 3) feed real numbers.
+const tint = (project?: Project) => `var(--tint-${project?.color ?? 'blue'})`
+
 export function TodayPage() {
   const { t, i18n } = useTranslation()
-  const now = new Date()
-  const hour = now.getHours() + now.getMinutes() / 60
+  const today = useToday()
+  const now = new Date(today.now)
   const date = new Intl.DateTimeFormat(i18n.language, {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
   }).format(now)
+
+  const trackedMin = Math.floor(today.trackedMs / 60_000)
+  const total = today.focusTasks.length
 
   return (
     <motion.div className={s.page} {...pageTransition}>
@@ -50,7 +58,10 @@ export function TodayPage() {
             label={t('today.tiles.focusTime')}
             value={
               <>
-                0<small>{t('today.hours')}</small>00<small>{t('today.minutes')}</small>
+                {Math.floor(trackedMin / 60)}
+                <small>{t('today.hours')}</small>
+                {String(trackedMin % 60).padStart(2, '0')}
+                <small>{t('today.minutes')}</small>
               </>
             }
             hint={t('today.tiles.focusTimeHint')}
@@ -59,21 +70,21 @@ export function TodayPage() {
             icon={<CheckmarkCircle20Regular />}
             tint="var(--tint-green)"
             label={t('today.tiles.tasksDone')}
-            value="0 / 0"
-            progress={0}
+            value={`${today.doneCount} / ${total}`}
+            progress={total ? today.doneCount / total : 0}
           />
           <StatTile
             icon={<Target20Regular />}
             tint="var(--tint-violet)"
             label={t('today.tiles.sessions')}
-            value="0"
+            value={today.sessions}
             hint={t('today.tiles.sessionsHint')}
           />
           <StatTile
             icon={<DataTrending20Regular />}
             tint="var(--tint-orange)"
             label={t('today.tiles.plan')}
-            value="0%"
+            value={`${Math.round(today.planRatio * 100)}%`}
             hint={t('today.tiles.planHint')}
           />
         </div>
@@ -81,13 +92,42 @@ export function TodayPage() {
         <div className={s.columns}>
           <section className={s.card}>
             <h2 className={s.cardTitle}>{t('today.focus')}</h2>
-            <p className={s.empty}>{t('today.focusEmpty')}</p>
+            {total === 0 && !today.loading ? (
+              <p className={s.empty}>{t('today.focusEmpty')}</p>
+            ) : (
+              <ul className={s.taskList}>
+                <AnimatePresence initial={false}>
+                  {today.focusTasks.map((task) => (
+                    <FocusTask
+                      key={task.id}
+                      task={task}
+                      project={task.projectId ? today.projectById.get(task.projectId) : undefined}
+                    />
+                  ))}
+                </AnimatePresence>
+              </ul>
+            )}
           </section>
 
           <section className={s.card}>
             <h2 className={s.cardTitle}>{t('today.plan')}</h2>
-            <DayTimeline hour={hour} />
-            <p className={s.empty}>{t('today.planEmpty')}</p>
+            <DayTimeline
+              now={today.now}
+              dayStart={today.dayStart}
+              blocks={today.blocks}
+              label={(b) => {
+                const task = b.taskId ? today.taskById.get(b.taskId) : undefined
+                return task?.title ?? b.title ?? t('today.tiles.noTask')
+              }}
+              color={(b) => {
+                if (b.kind === 'break') return 'var(--text-tertiary)'
+                if (b.kind === 'routine') return 'var(--tint-teal)'
+                if (b.kind === 'event') return 'var(--tint-rose)'
+                const task = b.taskId ? today.taskById.get(b.taskId) : undefined
+                return tint(task?.projectId ? today.projectById.get(task.projectId) : undefined)
+              }}
+            />
+            {today.blocks.length === 0 && <p className={s.empty}>{t('today.planEmpty')}</p>}
           </section>
         </div>
       </div>
@@ -97,22 +137,106 @@ export function TodayPage() {
   )
 }
 
-/** Vertical hour grid with a "now" line — the seed of the calendar day view. */
-function DayTimeline({ hour }: { hour: number }) {
-  const start = 8
-  const end = 22
-  const hours = Array.from({ length: end - start + 1 }, (_, i) => start + i)
-  const inRange = hour >= start && hour <= end
+function FocusTask({ task, project }: { task: Task; project?: Project }) {
+  const { t } = useTranslation()
+  const done = task.status === 'done'
   return (
-    <div className={s.timeline} aria-hidden>
+    <motion.li
+      layout
+      className={s.task}
+      data-done={done}
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0 }}
+      transition={springFirm}
+    >
+      <button
+        type="button"
+        role="checkbox"
+        aria-checked={done}
+        aria-label={task.title}
+        className={s.check}
+        onClick={() => tasksRepo.setStatus(task.id, done ? 'open' : 'done')}
+      >
+        {done && <Checkmark12Filled />}
+      </button>
+      <span className={s.dot} style={{ background: tint(project) }} />
+      <span className={s.taskText}>
+        <span className={s.taskTitle}>{task.title}</span>
+        {project && <span className={s.taskProject}>{project.name}</span>}
+      </span>
+      {task.estimateMin && (
+        <span className={s.estimate}>
+          {task.estimateMin >= 60 && (
+            <>
+              {Math.floor(task.estimateMin / 60)}
+              {t('today.hours')}{' '}
+            </>
+          )}
+          {task.estimateMin % 60 > 0 && (
+            <>
+              {task.estimateMin % 60}
+              {t('today.minutes')}
+            </>
+          )}
+        </span>
+      )}
+    </motion.li>
+  )
+}
+
+const START_HOUR = 8
+const END_HOUR = 22
+const HOUR_MS = 3_600_000
+
+interface DayTimelineProps {
+  now: number
+  dayStart: number
+  blocks: TimeBlock[]
+  label: (b: TimeBlock) => string
+  color: (b: TimeBlock) => string
+}
+
+/** Vertical hour grid with plan blocks and a "now" line — the seed of the calendar day view. */
+function DayTimeline({ now, dayStart, blocks, label, color }: DayTimelineProps) {
+  const hours = Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => START_HOUR + i)
+  const from = dayStart + START_HOUR * HOUR_MS
+  const span = (END_HOUR - START_HOUR) * HOUR_MS
+  const pos = (at: number) => Math.min(Math.max((at - from) / span, 0), 1) * 100
+  const nowInRange = now >= from && now <= from + span
+  const fmt = (at: number) =>
+    new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+
+  return (
+    <div className={s.timeline}>
       {hours.map((h) => (
-        <div key={h} className={s.hourRow}>
+        <div key={h} className={s.hourRow} aria-hidden>
           <span className="tabular">{String(h).padStart(2, '0')}:00</span>
         </div>
       ))}
-      {inRange && (
-        <div className={s.now} style={{ top: `${((hour - start) / (end - start)) * 100}%` }} />
-      )}
+      <div className={s.blocks}>
+        {blocks.map((b) => {
+          const top = pos(b.start)
+          const height = pos(b.end) - top
+          if (height <= 0) return null
+          return (
+            <div
+              key={b.id}
+              className={s.block}
+              data-kind={b.kind}
+              data-past={b.end < now}
+              style={{ top: `${top}%`, height: `${height}%`, '--block': color(b) } as CSSProperties}
+              title={`${label(b)} · ${fmt(b.start)}–${fmt(b.end)}`}
+            >
+              <span className={s.blockTitle}>{label(b)}</span>
+              <span className={s.blockTime}>
+                {fmt(b.start)}–{fmt(b.end)}
+              </span>
+            </div>
+          )
+        })}
+        {nowInRange && <div className={s.now} style={{ top: `${pos(now)}%` }} />}
+      </div>
     </div>
   )
 }

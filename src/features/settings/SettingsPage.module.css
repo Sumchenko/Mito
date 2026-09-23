@@ -3,3 +3,25 @@
   font-weight: 600;
   margin: 0 0 var(--space-2);
 }
+.section:not(:first-of-type) {
+  margin-top: var(--space-8);
+}
+
+.section-hint {
+  margin: calc(-1 * var(--space-1)) 0 var(--space-3);
+  font-size: var(--text-caption);
+  color: var(--text-secondary);
+}
+
+.status {
+  margin-top: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--stroke-card);
+}
+.status[data-kind='ok'] {
+  background: color-mix(in srgb, var(--success) 12%, var(--bg-card));
+}
+.status[data-kind='error'] {
+  background: color-mix(in srgb, var(--danger) 12%, var(--bg-card));
+}

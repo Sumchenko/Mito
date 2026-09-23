@@ -99,12 +99,13 @@
 
 /* ---------- Day timeline ---------- */
 .timeline {
+  --hour: 40px;
   position: relative;
   margin-bottom: var(--space-3);
 }
 
 .hour-row {
-  height: 24px;
+  height: var(--hour);
   display: flex;
   align-items: flex-start;
   gap: var(--space-3);
@@ -123,24 +124,168 @@
   height: 12px;
 }
 
+/* Blocks and the "now" line share one coordinate system: the span between 08:00 and 22:00. */
+.blocks {
+  position: absolute;
+  left: 46px;
+  right: 0;
+  top: 6px;
+  height: calc(14 * var(--hour));
+}
+
+.block {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  padding: 0 10px;
+  overflow: hidden;
+  border-radius: 8px;
+  border-left: 3px solid var(--block);
+  background: color-mix(in srgb, var(--block) 14%, var(--bg-card));
+  box-shadow: inset 0 0 0 1px var(--bg-card);
+  transition: opacity var(--dur-normal) linear;
+}
+.block[data-kind='break'] {
+  background: var(--bg-subtle-hover);
+}
+.block[data-past='true'] {
+  opacity: 0.6;
+}
+
+.block-title {
+  font-size: var(--text-caption);
+  line-height: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.block-time {
+  font-size: 11px;
+  line-height: 13px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Hide the time line for short blocks instead of clipping it. */
+@container (max-height: 30px) {
+  .block-time {
+    display: none;
+  }
+}
+.block {
+  container-type: size;
+}
+
 .now {
   position: absolute;
-  left: 38px;
+  left: -6px;
   right: 0;
+  z-index: 1;
   height: 2px;
-  margin-top: 5px;
+  margin-top: -1px;
   background: var(--accent);
   border-radius: 1px;
 }
 .now::before {
   content: '';
   position: absolute;
-  left: -4px;
+  left: -6px;
   top: -3px;
   width: 8px;
   height: 8px;
   border-radius: 50%;
   background: var(--accent);
+}
+
+/* ---------- Focus task list ---------- */
+.task-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.task {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 48px;
+  padding: 6px var(--space-2);
+  border-radius: 10px;
+  transition: background-color var(--dur-fast) linear;
+}
+.task:hover {
+  background: var(--bg-subtle-hover);
+}
+
+.check {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 6px;
+  border: 1px solid var(--stroke-control-bottom);
+  background: var(--bg-control);
+  color: var(--text-on-accent);
+  transition:
+    background-color var(--dur-normal) linear,
+    border-color var(--dur-normal) linear;
+}
+.check:hover {
+  border-color: var(--accent);
+}
+.task[data-done='true'] .check {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.task-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.task-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color var(--dur-normal) linear;
+}
+.task[data-done='true'] .task-title {
+  color: var(--text-tertiary);
+  text-decoration: line-through;
+  text-decoration-color: var(--text-disabled);
+}
+
+.task-project {
+  font-size: 11px;
+  line-height: 14px;
+  color: var(--text-tertiary);
+}
+
+.estimate {
+  flex-shrink: 0;
+  font-size: var(--text-caption);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ---------- Mentor ---------- */

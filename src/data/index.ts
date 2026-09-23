@@ -1,0 +1,11 @@
+// Public surface of the data layer. Features import from '@/data', never from '@/data/db'.
+export * from './types'
+export * from './dates'
+export { DomainError, type DomainErrorCode } from './errors'
+export { projectsRepo } from './repos/projects'
+export { tagsRepo } from './repos/tags'
+export { tasksRepo, type TaskInput, type TaskPatch } from './repos/tasks'
+export { timeEntriesRepo, entryDuration } from './repos/timeEntries'
+export { timeBlocksRepo, type TimeBlockInput } from './repos/timeBlocks'
+export { exportBackup, restoreBackup, clearAllData, type Backup } from './backup'
+export * from './hooks'

@@ -1,0 +1,51 @@
+.smoke {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background: rgb(0 0 0 / 0.3);
+}
+
+.dialog {
+  width: min(448px, 100%);
+  overflow: hidden;
+  border-radius: var(--radius-card);
+  background: var(--bg-layer);
+  border: 1px solid var(--stroke-card);
+  box-shadow: 0 32px 64px rgb(0 0 0 / 0.19), 0 2px 21px rgb(0 0 0 / 0.15);
+}
+
+.body {
+  padding: var(--space-6);
+  background: var(--bg-card);
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: var(--text-subtitle);
+  line-height: var(--leading-subtitle);
+  font-weight: 600;
+}
+
+.content {
+  margin-top: var(--space-3);
+  color: var(--text-secondary);
+}
+
+.footer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+  padding: var(--space-6);
+  border-top: 1px solid var(--stroke-divider);
+}
+
+.danger {
+  background: var(--danger);
+  color: var(--text-on-accent);
+}
+.danger:hover {
+  background: color-mix(in srgb, var(--danger) 88%, white);
+}

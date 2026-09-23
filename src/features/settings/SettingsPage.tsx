@@ -9,6 +9,7 @@ import type { Language } from '@/i18n'
 import { Page } from '@/ui/Page'
 import { Segmented } from '@/ui/Segmented'
 import { SettingRow } from '@/ui/SettingRow'
+import { DataSettings } from './DataSettings'
 import s from './SettingsPage.module.css'
 
 export function SettingsPage() {
@@ -68,6 +69,7 @@ export function SettingsPage() {
           onChange={setLanguage}
         />
       </SettingRow>
+      <DataSettings />
     </Page>
   )
 }

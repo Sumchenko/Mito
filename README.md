@@ -10,6 +10,7 @@ npm install
 npm run dev        # http://localhost:5173
 npm run build      # проверка типов + production-сборка
 npm run lint
+npm test           # тесты слоя данных (Vitest + in-memory IndexedDB)
 ```
 
 ## Структура
@@ -17,6 +18,7 @@ npm run lint
 ```
 src/
   app/        роутер, настройки пользователя, применение темы
+  data/       слой данных: схема Dexie, репозитории (единственный путь записи), живые хуки, бэкап
   design/     дизайн-токены (tokens.css), глобальные стили, пресеты анимаций
   i18n/       словари RU/EN
   shell/      оболочка: заголовок окна, навигационная панель

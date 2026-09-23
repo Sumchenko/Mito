@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react'
+import type { ButtonHTMLAttributes, ReactNode, Ref } from 'react'
 import { cx } from '@/lib/cx'
 import s from './Button.module.css'
 
@@ -9,6 +9,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   icon?: ReactNode
   /** Square button with only an icon; pass an aria-label. */
   iconOnly?: boolean
+  ref?: Ref<HTMLButtonElement>
 }
 
 export function Button({
