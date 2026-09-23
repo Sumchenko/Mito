@@ -1,12 +1,12 @@
 import {
   Navigation20Regular,
-  Play16Filled,
   Settings20Regular,
 } from '@fluentui/react-icons'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { useSettings } from '@/app/settings'
 import { Button } from '@/ui/Button'
+import { MiniTimer } from '@/features/timer/MiniTimer'
 import { SearchBox } from './SearchBox'
 import s from './TitleBar.module.css'
 
@@ -35,14 +35,7 @@ export function TitleBar({ mobile }: { mobile: boolean }) {
       <SearchBox />
 
       <div className={s.end}>
-        {/* Mini timer: becomes live in stage 3. */}
-        <div className={s.timer} title={t('titlebar.timerIdle')}>
-          <span className={s.timerDot} />
-          <span className="tabular">0:00:00</span>
-          <button type="button" className={s.timerButton} disabled aria-label="Start">
-            <Play16Filled />
-          </button>
-        </div>
+        <MiniTimer />
         {mobile && (
           <Link to="/settings" className={s.settingsLink} aria-label={t('nav.settings')}>
             <Settings20Regular />

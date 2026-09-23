@@ -2,24 +2,48 @@ import { db } from '../db'
 import { DomainError } from '../errors'
 import { alive, created } from '../meta'
 import type { Id, TimeEntry, TimeEntrySource, Timestamp } from '../types'
-import { requireAlive } from './common'
+import { done, requireAlive } from './common'
 
 /** Manual entries may end slightly in the future to tolerate clock skew between devices. */
 const FUTURE_TOLERANCE_MS = 60_000
 
-async function checkTask(taskId: Id | undefined | null) {
-  if (taskId != null) await requireAlive(db.tasks, taskId, 'Task')
-}
+// Helpers below run inside transactions: Dexie promise chains, not async functions.
+
+const checkTask = (taskId: Id | undefined | null) =>
+  taskId != null ? requireAlive(db.tasks, taskId, 'Task').then(() => undefined) : done()
 
 /** Throws if [start, end) intersects any other live entry. `end = null` means open-ended. */
-async function assertNoOverlap(start: Timestamp, end: Timestamp | null, excludeId?: Id) {
-  const clash = (await timeEntriesRepo.inRange(start, end ?? Infinity)).find(
-    (e) => e.id !== excludeId,
-  )
-  if (clash) {
-    throw new DomainError('time_overlap', `Overlaps with time entry ${clash.id}`)
-  }
-}
+const assertNoOverlap = (start: Timestamp, end: Timestamp | null, excludeId?: Id) =>
+  inRange(start, end ?? Infinity).then((entries) => {
+    const clash = entries.find((e) => e.id !== excludeId)
+    if (clash) throw new DomainError('time_overlap', `Overlaps with time entry ${clash.id}`)
+  })
+
+/**
+ * The running entry, if any. Entries never overlap, so a running entry is always the one
+ * that started last — no extra index needed.
+ */
+const running = () =>
+  db.timeEntries
+    .orderBy('start')
+    .reverse()
+    .filter(alive)
+    .first()
+    .then((latest) => (latest && latest.end === null ? latest : undefined))
+
+/** Live entries intersecting [from, to), including the running one. Sorted by start. */
+const inRange = (from: Timestamp, to: Timestamp) =>
+  db.timeEntries
+    .where('end')
+    .above(from)
+    .filter((e) => alive(e) && e.start < to)
+    .toArray()
+    .then((finished) =>
+      running().then((current) => {
+        if (current && current.start < to) finished.push(current)
+        return finished.sort((a, b) => a.start - b.start)
+      }),
+    )
 
 function checkInterval(start: Timestamp, end: Timestamp | null) {
   if (!Number.isFinite(start)) throw new DomainError('invalid', 'start must be a timestamp')
@@ -30,21 +54,14 @@ function checkInterval(start: Timestamp, end: Timestamp | null) {
 }
 
 export const timeEntriesRepo = {
-  /**
-   * The running entry, if any. Entries never overlap, so a running entry is always the one
-   * that started last — no extra index needed.
-   */
-  async running(): Promise<TimeEntry | undefined> {
-    const latest = await db.timeEntries.orderBy('start').reverse().filter(alive).first()
-    return latest && latest.end === null ? latest : undefined
-  },
+  running: (): Promise<TimeEntry | undefined> => running(),
 
   /** Starts the timer. A timer that is already running is stopped first. */
   async start(input: { taskId?: Id; source?: TimeEntrySource; at?: Timestamp } = {}) {
     return db.transaction('rw', db.timeEntries, db.tasks, async () => {
       const at = input.at ?? Date.now()
       await checkTask(input.taskId)
-      const current = await timeEntriesRepo.running()
+      const current = await running()
       if (current) {
         if (at <= current.start) throw new DomainError('invalid', 'Cannot start before the running entry')
         await db.timeEntries.update(current.id, { end: at, updatedAt: at })
@@ -65,7 +82,7 @@ export const timeEntriesRepo = {
   /** Stops the running entry and returns it, or `undefined` if nothing was running. */
   async stop(at: Timestamp = Date.now()): Promise<TimeEntry | undefined> {
     return db.transaction('rw', db.timeEntries, async () => {
-      const current = await timeEntriesRepo.running()
+      const current = await running()
       if (!current) return undefined
       const end = Math.max(at, current.start + 1)
       await db.timeEntries.update(current.id, { end, updatedAt: Date.now() })
@@ -126,17 +143,17 @@ export const timeEntriesRepo = {
     await db.timeEntries.update(id, { deletedAt: now, updatedAt: now })
   },
 
-  /** Live entries intersecting [from, to), including the running one. Sorted by start. */
-  async inRange(from: Timestamp, to: Timestamp): Promise<TimeEntry[]> {
-    const finished = await db.timeEntries
-      .where('end')
-      .above(from)
-      .filter((e) => alive(e) && e.start < to)
-      .toArray()
-    const running = await timeEntriesRepo.running()
-    if (running && running.start < to) finished.push(running)
-    return finished.sort((a, b) => a.start - b.start)
+  /** Tracked milliseconds per task over all finished entries (the running one excluded). */
+  async totalsByTask(): Promise<Map<Id, number>> {
+    const totals = new Map<Id, number>()
+    await db.timeEntries.each((e) => {
+      if (!alive(e) || e.end === null || !e.taskId) return
+      totals.set(e.taskId, (totals.get(e.taskId) ?? 0) + (e.end - e.start))
+    })
+    return totals
   },
+
+  inRange: (from: Timestamp, to: Timestamp): Promise<TimeEntry[]> => inRange(from, to),
 }
 
 /** Duration in ms, counting a running entry up to `now`. */

@@ -421,3 +421,18 @@
     align-items: flex-start;
   }
 }
+
+.play {
+  opacity: 0;
+  transition: opacity var(--dur-fast) linear;
+}
+.task:hover .play,
+.play:focus-visible,
+.play[data-tracking='true'] {
+  opacity: 1;
+}
+@media (hover: none) {
+  .play {
+    opacity: 1;
+  }
+}

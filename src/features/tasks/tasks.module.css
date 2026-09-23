@@ -765,37 +765,59 @@
   box-shadow: none;
 }
 
-/* Quick "+ subtask" action, revealed on hover like the drag handle. */
+/* Hover actions: start timer, add a subtask. Always shown for the task being tracked. */
+.row-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: -3px;
+  opacity: 0;
+  transition: opacity var(--dur-fast) linear;
+}
+.row:hover .row-actions,
+.row-actions:focus-within,
+.row-actions[data-visible='true'] {
+  opacity: 1;
+}
+@media (hover: none) {
+  .row-actions {
+    opacity: 1;
+  }
+}
+.row[data-tracking='true'] {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent) 4%, var(--bg-card));
+}
+
+/* Quick "+ subtask" action. */
 .row-action {
   display: grid;
   place-items: center;
   flex-shrink: 0;
   width: 28px;
   height: 28px;
-  margin: -3px -4px 0 0;
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-secondary);
-  opacity: 0;
-  transition: opacity var(--dur-fast) linear;
-}
-.row:hover .row-action,
-.row-action:focus-visible {
-  opacity: 1;
 }
 .row-action:hover {
   background: var(--bg-subtle-hover);
   color: var(--text-primary);
-}
-@media (hover: none) {
-  .row-action {
-    opacity: 1;
-  }
 }
 
 .list-hint {
   margin: calc(-1 * var(--space-2)) auto var(--space-4);
   font-size: var(--text-caption);
   color: var(--text-secondary);
+}
+
+.tracked-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-variant-numeric: tabular-nums;
+}
+.tracked-of {
+  color: var(--text-tertiary);
 }

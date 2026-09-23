@@ -14,6 +14,7 @@ import { tasksRepo, type Project, type Task, type TimeBlock } from '@/data'
 import { pageTransition, springFirm } from '@/design/motion'
 import { listPath } from '@/features/tasks/paths'
 import { PRIORITY_COLOR } from '@/features/tasks/priority'
+import { TaskTimerButton } from '@/features/timer/TaskTimerButton'
 import { Checkbox } from '@/ui/Checkbox'
 import { daypartOf, Landscape } from '@/ui/Landscape'
 import { StatTile } from '@/ui/StatTile'
@@ -182,6 +183,7 @@ function FocusTask({ task, project }: { task: Task; project?: Project }) {
           )}
         </span>
       )}
+      {!done && <TaskTimerButton taskId={task.id} className={s.play} />}
     </motion.li>
   )
 }

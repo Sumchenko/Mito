@@ -17,6 +17,8 @@ import { springFirm } from '@/design/motion'
 import { formatDay, formatMinutes } from '@/lib/format'
 import { Checkbox } from '@/ui/Checkbox'
 import { useExpanded } from './expanded'
+import { RunningBadge, TaskTimerButton } from '@/features/timer/TaskTimerButton'
+import { useIsTracking } from '@/features/timer/hooks'
 import { InlineSubtasks } from './InlineSubtasks'
 import { projectIdOf, type ListId } from './lists'
 import { PRIORITY_COLOR } from './priority'
@@ -46,6 +48,8 @@ export function TaskRow({ task, list, data, selected, onSelect, reorderable, onD
   const expanded = useExpanded((st) => !!st.ids[task.id])
   const setExpanded = useExpanded((st) => st.setExpanded)
   const [focusAdd, setFocusAdd] = useState(false)
+  const tracking = useIsTracking(task.id)
+  const trackedMs = data.tracked.get(task.id) ?? 0
   const canHaveSubtasks = !task.parentId
   const subtasks = expanded ? data.tasks.filter((x) => x.parentId === task.id) : []
 
@@ -88,13 +92,20 @@ export function TaskRow({ task, list, data, selected, onSelect, reorderable, onD
       ),
     })
   }
-  if (task.estimateMin) {
+  const units = { h: t('common.h'), min: t('common.min') }
+  if (tracking) meta.unshift({ key: 'running', node: <RunningBadge /> })
+  if (task.estimateMin || trackedMs >= 60_000) {
+    const spent = Math.round(trackedMs / 60_000)
     meta.push({
       key: 'estimate',
+      // Over the estimate is worth noticing, not alarming.
+      tone: task.estimateMin && spent > task.estimateMin && !done ? 'warning' : undefined,
       node: (
         <>
           <ClockRegular />
-          {formatMinutes(task.estimateMin, { h: t('common.h'), min: t('common.min') })}
+          {spent > 0 && formatMinutes(spent, units)}
+          {spent > 0 && task.estimateMin && ' / '}
+          {task.estimateMin && formatMinutes(task.estimateMin, units)}
         </>
       ),
     })
@@ -174,6 +185,8 @@ export function TaskRow({ task, list, data, selected, onSelect, reorderable, onD
           )}
         </AnimatePresence>
       </div>
+      <div className={s.rowActions} data-visible={tracking}>
+        {!done && <TaskTimerButton taskId={task.id} />}
       {canHaveSubtasks && !progress && !expanded && (
         <button
           type="button"
@@ -189,6 +202,7 @@ export function TaskRow({ task, list, data, selected, onSelect, reorderable, onD
           <Add16Regular />
         </button>
       )}
+      </div>
     </>
   )
 
@@ -199,6 +213,7 @@ export function TaskRow({ task, list, data, selected, onSelect, reorderable, onD
     onClick: () => onSelect(task.id),
     onKeyDown: (e: KeyboardEvent) => e.key === 'Enter' && onSelect(task.id),
     tabIndex: 0,
+    'data-tracking': tracking,
     style: { '--row-tint': PRIORITY_COLOR[task.priority] } as CSSProperties,
   }
 

@@ -165,6 +165,15 @@ describe('time entries', () => {
     expect(late.map((e) => e.id)).toEqual([running.id])
   })
 
+  it('sums finished time per task, skipping deleted and running entries', async () => {
+    const task = await tasksRepo.create({ title: 'x' })
+    await timeEntriesRepo.addManual({ taskId: task.id, start: base, end: base + 30 * MIN })
+    const gone = await timeEntriesRepo.addManual({ taskId: task.id, start: base + 40 * MIN, end: base + 50 * MIN })
+    await timeEntriesRepo.remove(gone.id)
+    await timeEntriesRepo.start({ taskId: task.id, at: base + 60 * MIN })
+    expect((await timeEntriesRepo.totalsByTask()).get(task.id)).toBe(30 * MIN)
+  })
+
   it('ignores deleted entries', async () => {
     const entry = await timeEntriesRepo.addManual({ start: base, end: base + 30 * MIN })
     await timeEntriesRepo.remove(entry.id)

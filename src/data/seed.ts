@@ -6,7 +6,7 @@ import { projectsRepo } from './repos/projects'
 import { tagsRepo } from './repos/tags'
 import { tasksRepo } from './repos/tasks'
 import { timeBlocksRepo } from './repos/timeBlocks'
-import type { Task, TimeEntry } from './types'
+import type { Project, Task, TimeEntry } from './types'
 
 const MIN = 60_000
 const HOUR = 60 * MIN
@@ -80,8 +80,29 @@ export async function seedDemoData(now = Date.now()) {
   })
   await t('Разобрать входящие', { estimateMin: 15 })
 
-  // Two weeks of history: several non-overlapping sessions per day.
-  const pool: Task[] = [api, postgres, tests, sport, reading, english]
+  // Finished work from the past two weeks — most history belongs here, as in real life.
+  const pastTitles: [string, Project][] = [
+    ['Ревью пул-реквестов', work],
+    ['Настроить CI для сервиса', work],
+    ['Созвон с командой', work],
+    ['Лекция по алгоритмам', study],
+    ['Конспект: транзакции в БД', study],
+    ['Пробежка 5 км', health],
+    ['Статья про привычки', growth],
+    ['Английский: сериал без субтитров', growth],
+  ]
+  const past: Task[] = []
+  for (const [i, [title, project]] of pastTitles.entries()) {
+    const task = await tasksRepo.create({ title, projectId: project.id, plannedDate: addDays(today, -1 - (i % 12)) })
+    const completedAt = startOfLocalDate(task.plannedDate!) + 20 * HOUR
+    await db.tasks.update(task.id, { status: 'done', completedAt })
+    past.push({ ...task, status: 'done', completedAt })
+  }
+
+  // Two weeks of history: several non-overlapping sessions per day. Past days go mostly to
+  // finished tasks; today goes to today's plan, so estimates and tracked time look realistic.
+  const pastPool: Task[] = [...past, ...past, postgres, english]
+  const todayPool: Task[] = [api, postgres, tests]
   const entries: TimeEntry[] = []
   for (let d = 14; d >= 0; d--) {
     const day = addDays(today, -d)
@@ -91,6 +112,7 @@ export async function seedDemoData(now = Date.now()) {
       const length = (25 + Math.floor(rand() * 70)) * MIN
       const end = cursor + length
       if (end > now) break
+      const pool = d === 0 ? todayPool : pastPool
       const task = pool[Math.floor(rand() * pool.length)]!
       const withoutTask = rand() < 0.08
       entries.push({

@@ -32,7 +32,11 @@ export const useTasksByProject = (projectId: Id | null) =>
 export const useSubtasks = (parentId: Id) =>
   useLiveQuery(() => tasksRepo.listSubtasks(parentId), [parentId])
 
-export const useRunningEntry = () => useLiveQuery(() => timeEntriesRepo.running(), [])
+/** The running entry: `undefined` while loading, `null` when nothing runs. */
+export const useRunningEntry = () =>
+  useLiveQuery(async () => (await timeEntriesRepo.running()) ?? null, [])
+
+export const useTrackedTotals = () => useLiveQuery(() => timeEntriesRepo.totalsByTask(), [])
 
 export const useTimeEntries = (from: Timestamp, to: Timestamp) =>
   useLiveQuery(() => timeEntriesRepo.inRange(from, to), [from, to])

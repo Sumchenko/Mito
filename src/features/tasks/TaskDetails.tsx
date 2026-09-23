@@ -19,6 +19,7 @@ import { Checkbox } from '@/ui/Checkbox'
 import { Dialog } from '@/ui/Dialog'
 import f from '@/ui/fields.module.css'
 import { Segmented } from '@/ui/Segmented'
+import { TaskTimerButton } from '@/features/timer/TaskTimerButton'
 import { findTag } from './createTask'
 import { PRIORITY_COLOR } from './priority'
 import type { TasksData } from './useTasksData'
@@ -151,6 +152,16 @@ export function TaskDetails({ task, data, onClose, onSelect }: TaskDetailsProps)
               </option>
             ))}
           </select>
+        </Field>
+
+        <Field label={t('timer.tracked')}>
+          <div className={s.trackedField}>
+            <TaskTimerButton taskId={task.id} />
+            <span>
+              {minutes(Math.round((data.tracked.get(task.id) ?? 0) / 60_000))}
+              {task.estimateMin && <span className={s.trackedOf}> / {minutes(task.estimateMin)}</span>}
+            </span>
+          </div>
         </Field>
 
         <Field label={t('tasks.details.priority')}>

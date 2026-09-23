@@ -135,38 +135,6 @@
   gap: var(--space-2);
 }
 
-.timer {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  height: 32px;
-  padding: 0 4px 0 12px;
-  border-radius: 16px;
-  border: 1px solid var(--stroke-control);
-  background: var(--bg-control);
-  color: var(--text-secondary);
-}
-
-.timer-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--text-disabled);
-}
-
-.timer-button {
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  border: 0;
-  border-radius: 50%;
-  background: var(--accent);
-  color: var(--text-on-accent);
-}
-.timer-button:disabled {
-  opacity: 0.45;
-}
 
 .settings-link {
   display: grid;

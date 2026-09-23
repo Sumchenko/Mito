@@ -1,17 +1,28 @@
-import type { Table } from 'dexie'
+import { Dexie, type PromiseExtended, type Table } from 'dexie'
 import { DomainError } from '../errors'
 import { alive } from '../meta'
 import type { Id, SyncMeta, TintKey } from '../types'
 
-export async function requireAlive<T extends SyncMeta, TInsert>(
+/*
+ * Helpers called *inside* Dexie transactions must return Dexie promises (plain `.then`
+ * chains), not native `async` functions. Nested native async calls can make Dexie lose the
+ * transaction zone, and the browser then commits the transaction early ("Transaction committed
+ * too early"). Top-level transaction scopes may stay `async`.
+ */
+
+export function requireAlive<T extends SyncMeta, TInsert>(
   table: Table<T, Id, TInsert>,
   id: Id,
   what: string,
-): Promise<T> {
-  const record = await table.get(id)
-  if (!alive(record)) throw new DomainError('not_found', `${what} ${id} not found`)
-  return record
+): PromiseExtended<T> {
+  return table.get(id).then((record) => {
+    if (!alive(record)) throw new DomainError('not_found', `${what} ${id} not found`)
+    return record
+  })
 }
+
+/** Resolved Dexie promise — keeps optional checks inside the transaction zone. */
+export const done = () => Dexie.Promise.resolve()
 
 export function requireName(value: string, what: string): string {
   const name = value.trim()

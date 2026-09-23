@@ -3,7 +3,8 @@ import { db } from '../db'
 import { DomainError } from '../errors'
 import { alive, created, definedOnly } from '../meta'
 import type { Id, LocalDate, Priority, Task, TaskStatus } from '../types'
-import { ORDER_STEP, requireAlive, requireName } from './common'
+import { Dexie } from 'dexie'
+import { done, ORDER_STEP, requireAlive, requireName } from './common'
 
 export interface TaskInput {
   title: string
@@ -34,26 +35,36 @@ function checkEstimate(value: number | null | undefined) {
   }
 }
 
-async function checkRefs(input: {
-  projectId?: Id | null
-  tagIds?: Id[]
-}) {
-  if (input.projectId != null) await requireAlive(db.projects, input.projectId, 'Project')
-  for (const tagId of input.tagIds ?? []) await requireAlive(db.tags, tagId, 'Tag')
+// Called inside transactions: Dexie promise chains, not async functions (see common.ts).
+
+function checkRefs(input: { projectId?: Id | null; tagIds?: Id[] }) {
+  const checks: PromiseLike<unknown>[] = (input.tagIds ?? []).map((tagId) =>
+    requireAlive(db.tags, tagId, 'Tag'),
+  )
+  checks.push(input.projectId != null ? requireAlive(db.projects, input.projectId, 'Project') : done())
+  return Dexie.Promise.all(checks)
 }
 
 /** Validates the parent and returns it. Only one nesting level: a subtask cannot have children. */
-async function checkParent(parentId: Id, selfId?: Id): Promise<Task> {
-  if (parentId === selfId) throw new DomainError('invalid', 'A task cannot be its own parent')
-  const parent = await requireAlive(db.tasks, parentId, 'Parent task')
-  if (parent.parentId) throw new DomainError('nesting_too_deep', 'Subtasks cannot have subtasks')
-  if (selfId) {
-    const hasChildren = await db.tasks.where('parentId').equals(selfId).filter(alive).count()
-    if (hasChildren) {
-      throw new DomainError('nesting_too_deep', 'A task with subtasks cannot become a subtask')
-    }
+function checkParent(parentId: Id, selfId?: Id) {
+  if (parentId === selfId) {
+    return Dexie.Promise.reject(new DomainError('invalid', 'A task cannot be its own parent'))
   }
-  return parent
+  return requireAlive(db.tasks, parentId, 'Parent task').then((parent) => {
+    if (parent.parentId) throw new DomainError('nesting_too_deep', 'Subtasks cannot have subtasks')
+    if (!selfId) return parent
+    return db.tasks
+      .where('parentId')
+      .equals(selfId)
+      .filter(alive)
+      .count()
+      .then((children) => {
+        if (children) {
+          throw new DomainError('nesting_too_deep', 'A task with subtasks cannot become a subtask')
+        }
+        return parent
+      })
+  })
 }
 
 const PRIORITIES: readonly Priority[] = [0, 1, 2, 3]
