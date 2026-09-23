@@ -1,0 +1,70 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 32px;
+  padding: 5px 12px 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  cursor: default;
+  user-select: none;
+  transition:
+    background-color var(--dur-fast) linear,
+    color var(--dur-fast) linear;
+}
+
+.button:disabled {
+  color: var(--text-disabled);
+  pointer-events: none;
+}
+
+.icon {
+  display: inline-flex;
+  font-size: 16px;
+}
+
+.icon-only {
+  padding: 0;
+  width: 32px;
+}
+
+.standard {
+  background: var(--bg-control);
+  border-color: var(--stroke-control);
+  border-bottom-color: var(--stroke-control-bottom);
+}
+.standard:hover {
+  background: var(--bg-control-hover);
+}
+.standard:active {
+  color: var(--text-secondary);
+  border-bottom-color: var(--stroke-control);
+}
+
+.accent {
+  background: var(--accent);
+  color: var(--text-on-accent);
+  border-color: rgb(255 255 255 / 0.08);
+  border-bottom-color: rgb(0 0 0 / 0.3);
+}
+.accent:hover {
+  background: var(--accent-hover);
+}
+.accent:active {
+  background: var(--accent-pressed);
+  border-bottom-color: rgb(255 255 255 / 0.08);
+}
+
+.subtle {
+  background: transparent;
+}
+.subtle:hover {
+  background: var(--bg-subtle-hover);
+}
+.subtle:active {
+  background: var(--bg-subtle-pressed);
+  color: var(--text-secondary);
+}

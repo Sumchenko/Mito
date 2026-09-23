@@ -1,0 +1,128 @@
+.pane {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: var(--nav-width);
+  padding: var(--space-1) var(--space-1) var(--space-2);
+  transition: width var(--dur-slow) var(--ease-standard);
+  overflow: hidden;
+}
+.pane[data-compact='true'] {
+  width: var(--nav-width-compact);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  height: 36px;
+  padding: 0 14px;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  transition: background-color var(--dur-fast) linear;
+}
+.item:hover {
+  background: var(--bg-subtle-hover);
+}
+.item:active {
+  background: var(--bg-subtle-pressed);
+  color: var(--text-secondary);
+}
+.item[aria-current='page'] {
+  background: var(--bg-subtle-hover);
+}
+
+.indicator {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 3px;
+  height: 16px;
+  margin-top: -8px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.icon {
+  flex-shrink: 0;
+  font-size: 20px;
+}
+.item[aria-current='page'] .icon {
+  color: var(--accent-text);
+}
+
+.label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- Bottom bar (phones) ---------- */
+.bottom {
+  display: flex;
+  justify-content: space-around;
+  padding: var(--space-1) var(--space-2) calc(var(--space-1) + env(safe-area-inset-bottom));
+  background: var(--bg-layer);
+  border-top: 1px solid var(--stroke-divider);
+}
+
+.bottom .item {
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  height: 56px;
+  padding: 0;
+  font-size: 11px;
+  line-height: 14px;
+  color: var(--text-secondary);
+}
+.bottom .item[aria-current='page'] {
+  background: transparent;
+  color: var(--text-primary);
+}
+.bottom .indicator {
+  left: 50%;
+  top: 0;
+  width: 20px;
+  height: 3px;
+  margin: 0 0 0 -10px;
+}
+
+/* ---------- Airy style: selection is a filled pill that slides between items ---------- */
+:global(:root[data-style='airy']) .pane {
+  padding: var(--space-2) var(--space-2) var(--space-3);
+}
+:global(:root[data-style='airy']) .pane .item {
+  height: 40px;
+  border-radius: 10px;
+}
+:global(:root[data-style='airy']) .pane .item[aria-current='page'] {
+  background: transparent;
+  color: var(--accent-text);
+  font-weight: 600;
+}
+:global(:root[data-style='airy']) .pane .indicator {
+  inset: 0;
+  width: auto;
+  height: auto;
+  margin: 0;
+  border-radius: 10px;
+  background: var(--accent-subtle);
+}
+:global(:root[data-style='airy']) .pane .icon,
+:global(:root[data-style='airy']) .pane .label {
+  position: relative;
+}
+:global(:root[data-style='airy']) .pane[data-compact='true'] .item {
+  padding: 0 10px;
+}

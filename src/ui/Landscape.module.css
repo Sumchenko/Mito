@@ -1,0 +1,118 @@
+/* Palette per time of day. Stops/paths read the variables so one SVG serves every mood. */
+.landscape {
+  display: block;
+}
+
+.morning {
+  --sky-top: #e6eefa;
+  --sky-bottom: #f8efe7;
+  --sun: #fff4e0;
+  --sun-glow: rgb(255 236 210 / 0);
+  --ridge-1: #cfdcef;
+  --ridge-2: #b1c6e5;
+  --ridge-3: #93afd9;
+  --ridge-4: #7394c6;
+  --mist: #f4f7fc;
+  --stars: 0;
+}
+
+.day {
+  --sky-top: #dce9fa;
+  --sky-bottom: #f0f6fd;
+  --sun: #ffffff;
+  --sun-glow: rgb(255 255 255 / 0);
+  --ridge-1: #c7d8f0;
+  --ridge-2: #a6c0e8;
+  --ridge-3: #86a6da;
+  --ridge-4: #668ac8;
+  --mist: #eef4fc;
+  --stars: 0;
+}
+
+.evening {
+  --sky-top: #e6e1f4;
+  --sky-bottom: #f9e5da;
+  --sun: #ffe0cb;
+  --sun-glow: rgb(255 214 190 / 0);
+  --ridge-1: #d3cbe8;
+  --ridge-2: #b5aad9;
+  --ridge-3: #968bc6;
+  --ridge-4: #766dae;
+  --mist: #f6eff5;
+  --stars: 0;
+}
+
+/* Dark theme: always a calm night, far ridges hazier than near ones. */
+:global(:root[data-theme='dark']) .landscape {
+  --sky-top: #141c2c;
+  --sky-bottom: #1d2740;
+  --sun: #e4ecfb;
+  --sun-glow: rgb(160 190 240 / 0);
+  --ridge-1: #2d3a55;
+  --ridge-2: #26324b;
+  --ridge-3: #202a40;
+  --ridge-4: #1a2234;
+  --mist: #1f2940;
+  --stars: 1;
+}
+
+.sky-top {
+  stop-color: var(--sky-top);
+}
+.sky-bottom {
+  stop-color: var(--sky-bottom);
+}
+.sun-core {
+  stop-color: var(--sun);
+}
+.sun-glow {
+  stop-color: var(--sun-glow);
+}
+.mist-clear {
+  stop-color: var(--mist);
+  stop-opacity: 0;
+}
+.mist-dense {
+  stop-color: var(--mist);
+  stop-opacity: 0.55;
+}
+
+.ridge1 {
+  fill: var(--ridge-1);
+}
+.ridge2 {
+  fill: var(--ridge-2);
+}
+.ridge3 {
+  fill: var(--ridge-3);
+}
+.ridge4 {
+  fill: var(--ridge-4);
+}
+
+.stars {
+  fill: #fff;
+  opacity: var(--stars);
+}
+
+/* Moon is smaller and crisper than the sun. */
+:global(:root[data-theme='dark']) .sun {
+  r: 26px;
+}
+
+.mist {
+  animation: drift 40s ease-in-out infinite alternate;
+}
+.mist:nth-of-type(2n) {
+  animation-duration: 55s;
+  animation-direction: alternate-reverse;
+}
+
+@keyframes drift {
+  from {
+    transform: translateX(-40px);
+  }
+  to {
+    transform: translateX(40px);
+  }
+}

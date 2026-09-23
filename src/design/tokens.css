@@ -1,0 +1,234 @@
+/*
+ * Mito design tokens.
+ * Surfaces follow the Windows 11 layering model: base (window backdrop) → layer (content
+ * area) → card. Hierarchy comes from 1px strokes and subtle fills, not from heavy shadows.
+ * Neutrals are slightly warm so long sessions feel calm rather than clinical.
+ */
+
+:root {
+  /* Typography */
+  --font-ui: 'Segoe UI Variable Text', 'Segoe UI Variable', 'Segoe UI', 'Onest Variable', system-ui,
+    sans-serif;
+  --font-display: 'Segoe UI Variable Display', 'Segoe UI Variable', 'Segoe UI', 'Onest Variable',
+    system-ui, sans-serif;
+  --font-mono: 'Cascadia Mono', 'Cascadia Code', ui-monospace, 'SF Mono', Consolas, monospace;
+
+  --text-caption: 12px;
+  --text-body: 14px;
+  --text-body-strong: 14px;
+  --text-subtitle: 20px;
+  --text-title: 28px;
+  --text-display: 40px;
+  --leading-caption: 16px;
+  --leading-body: 20px;
+  --leading-subtitle: 28px;
+  --leading-title: 36px;
+  --leading-display: 52px;
+
+  /* Spacing — 4px grid */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* Radii — Windows 11 uses small, consistent corners */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+
+  /* Motion — Fluent durations and curves */
+  --dur-fast: 83ms;
+  --dur-normal: 167ms;
+  --dur-slow: 250ms;
+  --dur-slower: 333ms;
+  --ease-out: cubic-bezier(0, 0, 0, 1); /* decelerate: entering elements */
+  --ease-in: cubic-bezier(1, 0, 1, 1); /* accelerate: leaving elements */
+  --ease-standard: cubic-bezier(0.33, 0, 0.1, 1);
+
+  /* Layout */
+  --titlebar-height: 48px;
+  --nav-width: 240px;
+  --nav-width-compact: 56px;
+
+  /* Style-dependent shape (overridden by the airy style below) */
+  --radius-card: var(--radius-lg);
+
+  /* Category tints — task dots, stat icons, calendar blocks */
+  --tint-blue: #3f7fd6;
+  --tint-green: #3f9a6a;
+  --tint-violet: #8a6ad0;
+  --tint-orange: #d88a3c;
+  --tint-rose: #cf5f78;
+  --tint-teal: #2f9a9e;
+}
+
+/* ---------- Light ---------- */
+:root,
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --bg-base: #efeeeb;
+  --bg-base-tint: #ebedee;
+  --bg-layer: #f9f9f8;
+  --bg-card: #ffffff;
+  --bg-card-secondary: #f6f6f4;
+  --bg-subtle-hover: rgb(0 0 0 / 0.04);
+  --bg-subtle-pressed: rgb(0 0 0 / 0.025);
+  --bg-control: rgb(255 255 255 / 0.7);
+  --bg-control-hover: rgb(249 249 249 / 0.5);
+  --bg-control-input: #ffffff;
+
+  --stroke-card: rgb(0 0 0 / 0.07);
+  --stroke-divider: rgb(0 0 0 / 0.08);
+  --stroke-control: rgb(0 0 0 / 0.08);
+  --stroke-control-bottom: rgb(0 0 0 / 0.16);
+  --stroke-focus-outer: #1b1b1a;
+  --stroke-focus-inner: #ffffff;
+
+  --text-primary: #1b1b1a;
+  --text-secondary: #5c5b57;
+  --text-tertiary: #8b8a85;
+  --text-disabled: #b3b2ad;
+  --text-on-accent: #ffffff;
+
+  --accent: #2c6a86;
+  --accent-hover: #357692;
+  --accent-pressed: #4a8098;
+  --accent-text: #1f5a74;
+  --accent-subtle: rgb(44 106 134 / 0.1);
+
+  --success: #3c7a4b;
+  --warning: #9a6a12;
+  --danger: #b0413e;
+
+  --shadow-flyout: 0 8px 16px rgb(0 0 0 / 0.1), 0 0 0 1px rgb(0 0 0 / 0.05);
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.04);
+}
+
+/* ---------- Dark ---------- */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg-base: #1b1b1a;
+  --bg-base-tint: #1a1c1d;
+  --bg-layer: #242423;
+  --bg-card: #2b2b2a;
+  --bg-card-secondary: #272726;
+  --bg-subtle-hover: rgb(255 255 255 / 0.06);
+  --bg-subtle-pressed: rgb(255 255 255 / 0.04);
+  --bg-control: rgb(255 255 255 / 0.06);
+  --bg-control-hover: rgb(255 255 255 / 0.085);
+  --bg-control-input: rgb(255 255 255 / 0.04);
+
+  --stroke-card: rgb(255 255 255 / 0.07);
+  --stroke-divider: rgb(255 255 255 / 0.08);
+  --stroke-control: rgb(255 255 255 / 0.07);
+  --stroke-control-bottom: rgb(255 255 255 / 0.1);
+  --stroke-focus-outer: #ffffff;
+  --stroke-focus-inner: #000000;
+
+  --text-primary: #f1f0ec;
+  --text-secondary: #c2c1bb;
+  --text-tertiary: #8f8e89;
+  --text-disabled: #5e5d59;
+  --text-on-accent: #0e1a20;
+
+  --accent: #7fb6cf;
+  --accent-hover: #74a8bf;
+  --accent-pressed: #6997ab;
+  --accent-text: #9cc8dc;
+  --accent-subtle: rgb(127 182 207 / 0.12);
+
+  --success: #7fbf8c;
+  --warning: #e0b05a;
+  --danger: #e8837f;
+
+  --shadow-flyout: 0 8px 16px rgb(0 0 0 / 0.3), 0 0 0 1px rgb(255 255 255 / 0.06);
+  --shadow-card: none;
+
+  --tint-blue: #7fb0f0;
+  --tint-green: #7cc79e;
+  --tint-violet: #b39cf0;
+  --tint-orange: #f0b070;
+  --tint-rose: #ef93a8;
+  --tint-teal: #6fc9cc;
+}
+
+/*
+ * ---------- Airy style ----------
+ * Brighter, sky-toned variant with larger radii and soft blue-tinted shadows.
+ * Selectors carry an extra attribute so they win over the plain theme blocks above.
+ */
+:root[data-style='airy'] {
+  --radius-card: 14px;
+}
+
+:root[data-style='airy']:not([data-theme='dark']) {
+  --bg-base: #fbfcfe;
+  --bg-base-tint: #f6f9fd;
+  --bg-layer: #eef3f9;
+  --bg-card: #ffffff;
+  --bg-card-secondary: #f5f8fc;
+  --bg-subtle-hover: rgb(40 80 140 / 0.05);
+  --bg-subtle-pressed: rgb(40 80 140 / 0.03);
+  --bg-control: #ffffff;
+  --bg-control-hover: #f7f9fc;
+
+  --stroke-card: rgb(30 60 110 / 0.07);
+  --stroke-divider: rgb(30 60 110 / 0.08);
+  --stroke-control: rgb(30 60 110 / 0.1);
+  --stroke-control-bottom: rgb(30 60 110 / 0.18);
+
+  --text-primary: #1a2233;
+  --text-secondary: #5a6478;
+  --text-tertiary: #8a93a6;
+  --text-disabled: #b8bfcc;
+
+  --accent: #3a7bd5;
+  --accent-hover: #4a88de;
+  --accent-pressed: #5d95e2;
+  --accent-text: #2b66b8;
+  --accent-subtle: rgb(58 123 213 / 0.1);
+
+  --shadow-card: 0 1px 2px rgb(30 60 110 / 0.04), 0 6px 20px rgb(30 60 110 / 0.05);
+}
+
+:root[data-style='airy'][data-theme='dark'] {
+  --bg-base: #121826;
+  --bg-base-tint: #131b2b;
+  --bg-layer: #172031;
+  --bg-card: #1d2739;
+  --bg-card-secondary: #1a2334;
+  --bg-control: rgb(255 255 255 / 0.06);
+  --bg-control-hover: rgb(255 255 255 / 0.09);
+
+  --stroke-card: rgb(160 190 240 / 0.08);
+  --stroke-divider: rgb(160 190 240 / 0.09);
+
+  --text-primary: #e9eef7;
+  --text-secondary: #aab4c6;
+  --text-tertiary: #7a8599;
+  --text-disabled: #4f5a6e;
+  --text-on-accent: #0b1522;
+
+  --accent: #7fb0f0;
+  --accent-hover: #73a3e3;
+  --accent-pressed: #6895d2;
+  --accent-text: #9cc2f5;
+  --accent-subtle: rgb(127 176 240 / 0.14);
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.25);
+
+  --tint-blue: #7fb0f0;
+  --tint-green: #7cc79e;
+  --tint-violet: #b39cf0;
+  --tint-orange: #f0b070;
+  --tint-rose: #ef93a8;
+  --tint-teal: #6fc9cc;
+}

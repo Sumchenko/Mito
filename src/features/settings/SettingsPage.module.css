@@ -1,0 +1,5 @@
+.section {
+  font-size: var(--text-body);
+  font-weight: 600;
+  margin: 0 0 var(--space-2);
+}

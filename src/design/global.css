@@ -1,0 +1,73 @@
+@import './tokens.css';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  color: var(--text-primary);
+  /* Mica-like backdrop: a barely perceptible cool tint drifting across the warm base. */
+  background:
+    radial-gradient(120% 80% at 100% 0%, var(--bg-base-tint), transparent 60%),
+    var(--bg-base);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: 'tnum' 0;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+::selection {
+  background: var(--accent-subtle);
+}
+
+/* Keyboard-only focus ring, Windows style: two-tone outline. */
+:focus-visible {
+  outline: 2px solid var(--stroke-focus-outer);
+  outline-offset: 1px;
+  box-shadow: 0 0 0 1px var(--stroke-focus-inner);
+}
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Thin overlay-like scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--stroke-control-bottom) transparent;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
