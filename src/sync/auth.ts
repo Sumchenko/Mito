@@ -18,8 +18,22 @@ export function initAuth() {
       else stopSync()
     }, 0)
   }
-  void supabase.auth.getSession().then(({ data }) => apply(data.session))
+  void confirmFromEmailLink().then(() => supabase!.auth.getSession().then(({ data }) => apply(data.session)))
   supabase.auth.onAuthStateChange((_event, session) => apply(session))
+}
+
+/**
+ * Email links point at our own domain (`/auth/confirm?token_hash=…&type=…`), not at the
+ * Supabase host, which may be unreachable for some users; the token is verified from here.
+ * The email templates in the Supabase project must use this URL — see docs/DEPLOY.md.
+ */
+async function confirmFromEmailLink() {
+  const url = new URL(window.location.href)
+  if (url.pathname !== '/auth/confirm') return
+  const tokenHash = url.searchParams.get('token_hash')
+  const type = url.searchParams.get('type') as 'email' | 'magiclink' | 'signup' | 'recovery' | null
+  window.history.replaceState(null, '', '/settings')
+  if (tokenHash && type && supabase) await supabase.auth.verifyOtp({ token_hash: tokenHash, type })
 }
 
 export type AuthResult = { ok: true; notice?: 'check-email' } | { ok: false; error: string }

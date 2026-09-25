@@ -19,6 +19,8 @@ export const router = createBrowserRouter([
       { path: 'calendar', element: <CalendarPage /> },
       // The zoom prototype became the calendar itself.
       { path: 'calendar/zoom', element: <Navigate to="/calendar" replace /> },
+      // Email sign-in links land here; the token is verified by initAuth().
+      { path: 'auth/confirm', element: <Navigate to="/settings" replace /> },
       { path: 'stats', element: <StatsPage /> },
       { path: 'mentor', element: <MentorPage /> },
       { path: 'settings', element: <SettingsPage /> },

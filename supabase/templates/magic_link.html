@@ -1,0 +1,10 @@
+<!-- Sign-in link. The URL points at Mito's own domain, never at the Supabase host. -->
+<div style="font-family: -apple-system, 'Segoe UI', sans-serif; max-width: 480px; margin: 0 auto; color: #1f2937">
+  <h2 style="font-weight: 600">Вход в Mito</h2>
+  <p>Нажмите кнопку, чтобы войти. Ссылка действует один час и сработает один раз.</p>
+  <p>
+    <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email"
+       style="display: inline-block; padding: 10px 18px; border-radius: 6px; background: #2c6a86; color: #fff; text-decoration: none">Войти в Mito</a>
+  </p>
+  <p style="color: #6b7280; font-size: 13px">Sign in to Mito: open the button above. If you did not ask for this email, just ignore it.</p>
+</div>

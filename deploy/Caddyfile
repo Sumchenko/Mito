@@ -1,0 +1,38 @@
+# Mito web server. Rendered by the deploy workflow: __MITO_DOMAIN__ and __SUPABASE_URL__ are
+# replaced with repository variables before the file is uploaded.
+
+__MITO_DOMAIN__ {
+	encode zstd gzip
+
+	# Supabase behind our own domain: REST, Auth and the Realtime websocket. Browsers only ever
+	# talk to this server, so Mito keeps working where the Supabase host itself is unreachable.
+	handle_path /sb/* {
+		reverse_proxy __SUPABASE_URL__ {
+			header_up Host {upstream_hostport}
+		}
+	}
+
+	handle {
+		root * /var/www/mito/current
+		# Client-side routes (/tasks, /calendar, …) all load the app shell.
+		try_files {path} /index.html
+		file_server
+
+		# Hashed build assets never change; the shell must always be revalidated.
+		@assets path /assets/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+		@shell path / /index.html
+		header @shell Cache-Control "no-cache"
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	# Access logs go to the journal: journalctl -u caddy
+	log
+}

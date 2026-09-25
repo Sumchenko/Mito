@@ -29,6 +29,8 @@ const REMOTE_DELAY = 250
 const SAFETY_INTERVAL = 5 * 60_000
 
 let session: { userId: string; remote: Remote; stop: () => void } | null = null
+/** User whose sync is being set up (between startSync() and the session existing). */
+let starting: string | null = null
 let timer: number | undefined
 let running = false
 let again = false
@@ -75,10 +77,14 @@ async function run() {
 /** Starts syncing the local database with `userId`'s account. */
 export async function startSync(userId: string, email?: string) {
   if (!supabase) return
-  if (session?.userId === userId) return
+  // The session is reported twice on load (getSession and INITIAL_SESSION); start only once.
+  if (session?.userId === userId || starting === userId) return
   stopSync()
+  starting = userId
   useSync.setState({ status: 'syncing', email })
   await prepareFor(db, userId)
+  if (starting !== userId) return // signed out or switched while preparing
+  starting = null
 
   const onOnline = () => schedule(0)
   const onOffline = () => useSync.setState({ status: 'offline' })
@@ -106,6 +112,7 @@ export async function startSync(userId: string, email?: string) {
 }
 
 export function stopSync() {
+  starting = null
   session?.stop()
   session = null
   window.clearTimeout(timer)
