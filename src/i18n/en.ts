@@ -357,6 +357,7 @@ export const en: Messages = {
       close: 'Close',
       errors: {
         invalid: 'Wrong email or password.',
+        closed: 'Sign-ups are closed right now. Please try again later.',
         exists: 'An account with this email exists — sign in instead.',
         weak: 'The password is too short.',
         unconfirmed: 'Email not confirmed yet — open the link we sent.',

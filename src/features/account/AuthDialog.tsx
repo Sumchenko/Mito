@@ -22,6 +22,7 @@ function useErrorText() {
   return (message: string) => {
     const m = message.toLowerCase()
     if (m.includes('invalid login')) return t('account.dialog.errors.invalid')
+    if (m.includes('signups') && m.includes('disabled')) return t('account.dialog.errors.closed')
     if (m.includes('already registered') || m.includes('already exists')) return t('account.dialog.errors.exists')
     if (m.includes('password')) return t('account.dialog.errors.weak')
     if (m.includes('not confirmed')) return t('account.dialog.errors.unconfirmed')
