@@ -16,8 +16,8 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
@@ -30,7 +30,7 @@ jobs:
     needs: check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: supabase/setup-cli@v1
         with:
           version: latest
@@ -51,8 +51,8 @@ jobs:
       HOST: ${{ vars.SERVER_HOST }}
       RELEASE: ${{ github.sha }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
@@ -73,8 +73,10 @@ jobs:
 
       - name: Render web server config
         run: |
+          # Only scheme and host: tolerate a pasted REST URL (…supabase.co/rest/v1) or a trailing slash.
+          SUPABASE_ORIGIN=$(echo "${{ vars.SUPABASE_URL }}" | sed -E 's#^(https?://[^/]+).*#\1#')
           sed -e "s#__MITO_DOMAIN__#${{ vars.MITO_DOMAIN }}#g" \
-              -e "s#__SUPABASE_URL__#${{ vars.SUPABASE_URL }}#g" \
+              -e "s#__SUPABASE_URL__#${SUPABASE_ORIGIN}#g" \
               deploy/Caddyfile > Caddyfile.rendered
 
       - name: Upload release
