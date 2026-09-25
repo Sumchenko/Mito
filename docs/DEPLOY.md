@@ -34,8 +34,13 @@ bash /root/setup-server.sh "<публичный ключ выкладки>"
 2. **Authentication → Email Templates** — вставить шаблоны из репозитория:
    - *Magic Link* ← [`supabase/templates/magic_link.html`](../supabase/templates/magic_link.html), тема «Вход в Mito»
    - *Confirm signup* ← [`supabase/templates/confirmation.html`](../supabase/templates/confirmation.html), тема «Подтвердите почту для Mito»
-3. **Account → Access Tokens** — создать токен для GitHub Actions (секрет `SUPABASE_ACCESS_TOKEN`).
-4. Позже: **Authentication → SMTP** — свой почтовый сервис (например, Resend). Встроенная почта Supabase
+3. **Connect** (кнопка вверху) → **Session pooler** → строка подключения вида
+   `postgresql://postgres.<ref>:[YOUR-PASSWORD]@aws-…pooler.supabase.com:5432/postgres`.
+   Подставить пароль базы (спецсимволы в пароле — URL-кодировать) → секрет `SUPABASE_DB_URL`.
+   Именно pooler: прямое подключение на бесплатном тарифе доступно только по IPv6, которого нет у GitHub Actions.
+4. Пока нет своего домена и SMTP: **Sign In / Providers → Email** → выключить «Confirm email»
+   (шаблоны писем без своего SMTP не редактируются, а стандартные ведут на хост Supabase).
+5. Позже: **Authentication → SMTP** — свой почтовый сервис (например, Resend). Встроенная почта Supabase
    отправляет лишь несколько писем в час.
 
 Таблицы создавать вручную не нужно — их создаёт workflow из `supabase/migrations`.
@@ -49,7 +54,6 @@ bash /root/setup-server.sh "<публичный ключ выкладки>"
 | `MITO_DOMAIN` | домен сайта без `https://` |
 | `SERVER_HOST` | IP сервера |
 | `SUPABASE_URL` | Project URL, `https://<ref>.supabase.co` |
-| `SUPABASE_PROJECT_REF` | `<ref>` из Project URL |
 | `SUPABASE_ANON_KEY` | anon / publishable key (он публичный по своей природе) |
 
 **Secrets**:
@@ -58,8 +62,7 @@ bash /root/setup-server.sh "<публичный ключ выкладки>"
 |---|---|
 | `DEPLOY_SSH_KEY` | содержимое приватного ключа `~/.ssh/mito_deploy` целиком |
 | `SSH_KNOWN_HOSTS` | строка `ssh-keyscan -t ed25519 <IP>` (сверить отпечаток с сервером: `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`) |
-| `SUPABASE_ACCESS_TOKEN` | токен из шага 2.3 |
-| `SUPABASE_DB_PASSWORD` | пароль базы, заданный при создании проекта |
+| `SUPABASE_DB_URL` | строка подключения из шага 2.3, с паролем |
 
 ## 4. Выкладка
 
