@@ -24,6 +24,8 @@ function useErrorText() {
     if (m.includes('invalid login')) return t('account.dialog.errors.invalid')
     if (m.includes('signups') && m.includes('disabled')) return t('account.dialog.errors.closed')
     if (m.includes('already registered') || m.includes('already exists')) return t('account.dialog.errors.exists')
+    // The server's password policy: characters of each kind, or a minimum length.
+    if (m.includes('password') && m.includes('should contain')) return t('account.dialog.errors.simple')
     if (m.includes('password')) return t('account.dialog.errors.weak')
     if (m.includes('not confirmed')) return t('account.dialog.errors.unconfirmed')
     if (m.includes('email') && m.includes('invalid')) return t('account.dialog.errors.email')

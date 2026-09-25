@@ -24,7 +24,7 @@ afterAll(async () => {
 
 async function account(email: string) {
   const client = createClient(URL, ANON, { auth: { persistSession: false } })
-  const { data, error } = await client.auth.signUp({ email, password: 'correct-horse-battery' })
+  const { data, error } = await client.auth.signUp({ email, password: 'Correct-Horse-7!' })
   if (error) throw error
   return { client, userId: data.user!.id }
 }
