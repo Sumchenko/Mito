@@ -1,6 +1,7 @@
+import type { Table } from 'dexie'
 import { allTables, db, SCHEMA_VERSION } from './db'
 import { DomainError } from './errors'
-import type { Project, Tag, Task, TimeBlock, TimeEntry } from './types'
+import type { Project, SyncMeta, Tag, Task, TimeBlock, TimeEntry } from './types'
 
 export interface Backup {
   format: 'mito-backup'
@@ -62,16 +63,37 @@ export function parseBackup(raw: unknown): Backup {
   return raw as unknown as Backup
 }
 
-/** Replaces all local data with the backup contents, atomically. */
+/** Whether the local data belongs to an account (then removals must sync as tombstones). */
+const isSynced = async () => (await db.syncState.get('owner')) !== undefined
+
+/**
+ * Removes every record. Locally-only data is simply cleared. Account data is tombstoned
+ * instead, so the removal reaches the server and the other devices.
+ */
+async function removeAll(synced: boolean) {
+  const now = Date.now()
+  for (const table of allTables() as readonly Table<SyncMeta, string>[]) {
+    if (synced) await table.filter((r) => r.deletedAt === undefined).modify({ deletedAt: now, updatedAt: now })
+    else await table.clear()
+  }
+}
+
+/**
+ * Replaces all data with the backup contents, atomically. For an account, restored records
+ * are stamped as fresh edits — otherwise newer versions on the server would win over them.
+ */
 export async function restoreBackup(raw: unknown) {
   const backup = parseBackup(raw)
+  const synced = await isSynced()
+  const now = Date.now()
+  const fresh = <T extends { updatedAt: number }>(rows: T[]) => (synced ? rows.map((r) => ({ ...r, updatedAt: now })) : rows)
   await db.transaction('rw', allTables(), async () => {
-    for (const table of allTables()) await table.clear()
-    await db.projects.bulkAdd(backup.data.projects)
-    await db.tags.bulkAdd(backup.data.tags)
-    await db.tasks.bulkAdd(backup.data.tasks)
-    await db.timeEntries.bulkAdd(backup.data.timeEntries)
-    await db.timeBlocks.bulkAdd(backup.data.timeBlocks)
+    await removeAll(synced)
+    await db.projects.bulkPut(fresh(backup.data.projects))
+    await db.tags.bulkPut(fresh(backup.data.tags))
+    await db.tasks.bulkPut(fresh(backup.data.tasks))
+    await db.timeEntries.bulkPut(fresh(backup.data.timeEntries))
+    await db.timeBlocks.bulkPut(fresh(backup.data.timeBlocks))
   })
   return Object.fromEntries(TABLE_KEYS.map((k) => [k, backup.data[k].length])) as Record<
     (typeof TABLE_KEYS)[number],
@@ -79,8 +101,8 @@ export async function restoreBackup(raw: unknown) {
   >
 }
 
+/** Deletes everything — on every device, when the data belongs to an account. */
 export async function clearAllData() {
-  await db.transaction('rw', allTables(), async () => {
-    for (const table of allTables()) await table.clear()
-  })
+  const synced = await isSynced()
+  await db.transaction('rw', allTables(), () => removeAll(synced))
 }

@@ -9,6 +9,7 @@ import type { Language } from '@/i18n'
 import { Page } from '@/ui/Page'
 import { Segmented } from '@/ui/Segmented'
 import { SettingRow } from '@/ui/SettingRow'
+import { AccountSettings } from '@/features/account/AccountSettings'
 import { DataSettings } from './DataSettings'
 import s from './SettingsPage.module.css'
 
@@ -32,6 +33,7 @@ export function SettingsPage() {
 
   return (
     <Page title={t('settings.title')}>
+      <AccountSettings sectionClass={s.section} />
       <h2 className={s.section}>{t('settings.appearance')}</h2>
       <SettingRow
         icon={<PaintBrush20Regular />}

@@ -10,6 +10,7 @@ import { clearAllData, DomainError, exportBackup, restoreBackup, toLocalDate } f
 import { Button } from '@/ui/Button'
 import { Dialog } from '@/ui/Dialog'
 import { SettingRow } from '@/ui/SettingRow'
+import { useSync } from '@/sync/controller'
 import s from './SettingsPage.module.css'
 
 type Pending = 'import' | 'wipe' | 'seed' | null
@@ -17,6 +18,8 @@ type Status = { kind: 'ok' | 'error'; text: string } | null
 
 export function DataSettings() {
   const { t } = useTranslation()
+  const syncStatus = useSync((st) => st.status)
+  const signedIn = syncStatus !== 'guest' && syncStatus !== 'disabled'
   const fileInput = useRef<HTMLInputElement>(null)
   const [pending, setPending] = useState<Pending>(null)
   const [importFile, setImportFile] = useState<File | null>(null)
@@ -89,7 +92,7 @@ export function DataSettings() {
   return (
     <>
       <h2 className={s.section}>{t('settings.data')}</h2>
-      <p className={s.sectionHint}>{t('settings.dataHint')}</p>
+      <p className={s.sectionHint}>{t(signedIn ? 'settings.dataHintSynced' : 'settings.dataHint')}</p>
 
       <SettingRow
         icon={<ArrowDownload20Regular />}
@@ -124,7 +127,7 @@ export function DataSettings() {
       <SettingRow
         icon={<Delete20Regular />}
         title={t('settings.wipe')}
-        description={t('settings.wipeHint')}
+        description={t(signedIn ? 'settings.wipeHintSynced' : 'settings.wipeHint')}
       >
         <Button onClick={() => setPending('wipe')}>{t('settings.wipeButton')}</Button>
       </SettingRow>

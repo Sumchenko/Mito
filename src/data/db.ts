@@ -1,7 +1,8 @@
 import { Dexie, type EntityTable } from 'dexie'
+import { outboxMiddleware, type OutboxEntry } from './outbox'
 import type { Project, Tag, Task, TimeBlock, TimeEntry } from './types'
 
-export const SCHEMA_VERSION = 1
+export const SCHEMA_VERSION = 2
 
 /**
  * Local IndexedDB store. Index choices follow the hot queries:
@@ -15,16 +16,23 @@ export class MitoDB extends Dexie {
   tasks!: EntityTable<Task, 'id'>
   timeEntries!: EntityTable<TimeEntry, 'id'>
   timeBlocks!: EntityTable<TimeBlock, 'id'>
+  /** Local changes waiting to be pushed to the server. */
+  outbox!: EntityTable<OutboxEntry, 'key'>
+  /** Sync bookkeeping: pull cursor, owner of the local data. */
+  syncState!: EntityTable<{ key: string; value: unknown }, 'key'>
 
   constructor(name = 'mito') {
     super(name)
-    this.version(SCHEMA_VERSION).stores({
+    this.version(1).stores({
       projects: 'id, order, updatedAt',
       tags: 'id, name, updatedAt',
       tasks: 'id, projectId, parentId, status, plannedDate, dueDate, *tagIds, order, updatedAt',
       timeEntries: 'id, taskId, start, end, updatedAt',
       timeBlocks: 'id, taskId, start, end, updatedAt',
     })
+    // Stage 7: sync bookkeeping. Existing data is untouched.
+    this.version(2).stores({ outbox: 'key, seq', syncState: 'key' })
+    this.use(outboxMiddleware(() => this.outbox))
   }
 }
 

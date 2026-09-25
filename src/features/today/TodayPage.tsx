@@ -19,6 +19,7 @@ import { Checkbox } from '@/ui/Checkbox'
 import { daypartOf, Landscape } from '@/ui/Landscape'
 import { formatMinutes } from '@/lib/format'
 import { StatTile } from '@/ui/StatTile'
+import { GuestNudge } from '@/features/account/GuestNudge'
 import s from './TodayPage.module.css'
 import { useToday } from './useToday'
 
@@ -55,6 +56,8 @@ export function TodayPage() {
             <p className={s.heroLine}>{t('today.heroLine')}</p>
           </div>
         </header>
+
+        <GuestNudge hasData={total > 0 || today.trackedMs > 0} />
 
         <div className={s.tiles}>
           <StatTile

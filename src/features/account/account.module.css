@@ -1,0 +1,181 @@
+/* ---------- Sign-in dialog ---------- */
+.dialog {
+  width: min(420px, 100%);
+}
+.lead {
+  margin: var(--space-2) 0 var(--space-5);
+  color: var(--text-secondary);
+}
+.wide {
+  width: 100%;
+  justify-content: center;
+}
+.or {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-4) 0;
+  font-size: var(--text-caption);
+  color: var(--text-tertiary);
+}
+.or::before,
+.or::after {
+  content: '';
+  flex: 1;
+  border-top: 1px solid var(--stroke-divider);
+}
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--text-caption);
+  color: var(--text-secondary);
+}
+.field small {
+  color: var(--text-tertiary);
+}
+.error {
+  font-size: var(--text-caption);
+  color: var(--danger);
+}
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: var(--space-4);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent-text);
+  font: inherit;
+  font-size: var(--text-caption);
+  cursor: pointer;
+}
+.link:hover {
+  text-decoration: underline;
+}
+.sent {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+.sent > svg {
+  font-size: 32px;
+  color: var(--accent-text);
+}
+
+/* ---------- Settings ---------- */
+.guest {
+  display: flex;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-card);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--stroke-card));
+  background: color-mix(in srgb, var(--accent) 6%, var(--bg-card));
+}
+.guest-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  font-size: 22px;
+  color: var(--accent-text);
+  background: var(--accent-subtle);
+}
+.guest-text p {
+  margin: 4px 0 var(--space-3);
+  color: var(--text-secondary);
+  max-width: 620px;
+}
+.guest-actions,
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.warn {
+  margin-top: var(--space-2);
+  color: var(--danger);
+}
+
+/* ---------- Title bar indicator ---------- */
+.indicator {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 20px;
+  cursor: pointer;
+}
+.indicator:hover {
+  background: var(--bg-subtle-hover);
+}
+.indicator[data-status='synced'] {
+  color: var(--success, var(--text-secondary));
+}
+.indicator[data-status='error'] {
+  color: var(--danger);
+}
+.indicator[data-status='guest'] {
+  color: var(--accent-text);
+}
+.dot {
+  position: absolute;
+  top: 6px;
+  right: 5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--bg-base, var(--bg-card));
+}
+.spin {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---------- Guest nudge ---------- */
+.nudge {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-card);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--stroke-card));
+  background: color-mix(in srgb, var(--accent) 7%, var(--bg-card));
+}
+.nudge p {
+  flex: 1;
+  min-width: 220px;
+  color: var(--text-secondary);
+}
+.nudge-icon {
+  font-size: 20px;
+  color: var(--accent-text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+}

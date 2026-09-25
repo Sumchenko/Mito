@@ -127,7 +127,7 @@ export async function seedDemoData(now = Date.now()) {
     const pool = d === 0 ? todayPool : recent.length ? [...recent, ...recent, ...current] : ongoing
     const candidates: { start: number; end: number; taskId?: string; source: TimeEntry['source'] }[] = []
     const track = (start: number, length: number, taskId?: string) =>
-      candidates.push({ start, end: start + length, source: rand() < 0.3 ? 'pomodoro' : 'timer', ...(taskId ? { taskId } : {}) })
+      candidates.push({ start, end: start + Math.round(length), source: rand() < 0.3 ? 'pomodoro' : 'timer', ...(taskId ? { taskId } : {}) })
 
     if (!weekend && d > 0) {
       const slots = [9 * HOUR + 30 * MIN, 12 * HOUR, 15 * HOUR].slice(0, 2 + Math.floor(rand() * 2))

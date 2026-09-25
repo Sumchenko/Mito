@@ -3,6 +3,7 @@ import { cloneElement, isValidElement } from 'react'
 import { useLocation, useOutlet } from 'react-router'
 import { useSettings } from '@/app/settings'
 import { useApplySettings } from '@/app/useApplySettings'
+import { AuthDialog } from '@/features/account/AuthDialog'
 import { TimerController } from '@/features/timer/TimerController'
 import { useMediaQuery } from '@/lib/useMediaQuery'
 import { NavPane } from './NavPane'
@@ -24,6 +25,7 @@ export function AppShell() {
   return (
     <div className={s.shell} data-mobile={mobile}>
       <TimerController />
+      <AuthDialog />
       <TitleBar mobile={mobile} />
       {!mobile && <NavPane compact={navCollapsed || narrow} />}
       <main className={s.content}>

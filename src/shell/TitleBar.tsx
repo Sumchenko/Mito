@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { useSettings } from '@/app/settings'
 import { Button } from '@/ui/Button'
+import { SyncIndicator } from '@/features/account/SyncIndicator'
 import { MiniTimer } from '@/features/timer/MiniTimer'
 import { SearchBox } from './SearchBox'
 import s from './TitleBar.module.css'
@@ -35,6 +36,7 @@ export function TitleBar({ mobile }: { mobile: boolean }) {
       <SearchBox />
 
       <div className={s.end}>
+        <SyncIndicator />
         <MiniTimer />
         {mobile && (
           <Link to="/settings" className={s.settingsLink} aria-label={t('nav.settings')}>
