@@ -98,8 +98,9 @@ jobs:
           cd /var/www/mito/releases && ls -1t | tail -n +6 | xargs -r rm -rf
           EOF
 
+      # Retries cover the first deploy on a new domain, while Caddy is still obtaining the certificate.
       - name: Smoke test
         run: |
-          sleep 5
-          curl -fsS "https://${{ vars.MITO_DOMAIN }}/" | grep -q '<div id="root">'
-          curl -fsS -o /dev/null "https://${{ vars.MITO_DOMAIN }}/sb/auth/v1/health" -H "apikey: ${{ vars.SUPABASE_ANON_KEY }}"
+          get() { curl -fsS --retry 12 --retry-delay 5 --retry-all-errors "$@"; }
+          get "https://${{ vars.MITO_DOMAIN }}/" | grep -q '<div id="root">'
+          get -o /dev/null "https://${{ vars.MITO_DOMAIN }}/sb/auth/v1/health" -H "apikey: ${{ vars.SUPABASE_ANON_KEY }}"
