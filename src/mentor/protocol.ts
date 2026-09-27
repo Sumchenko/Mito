@@ -69,10 +69,99 @@ export interface ChatMessage {
   content: string
 }
 
+/**
+ * What the mentor learns about a learning goal while getting to know the user. Filled in turn by
+ * turn during the intake; the base of the learning plan.
+ */
+export interface IntakeProfile {
+  /** Short name of the goal ("Python for data analysis"). */
+  title?: string
+  subject?: string
+  level?: string
+  background?: string
+  motivation?: string
+  /** What counts as success for the user. */
+  success?: string
+  /** When the user can study: days, time of day. */
+  schedule?: string
+  /** Preferred ways to learn: video, books, practice… */
+  style?: string
+  constraints?: string
+  targetDate?: string
+  weeklyMinutes?: number
+}
+
+/**
+ * A light picture of the user for the intake: no task lists, so the many short turns of a
+ * conversation stay cheap.
+ */
+export interface IntakeAbout {
+  today: string
+  weekday: string
+  workHours: { start: string; end: string }
+  avgTrackedMin: number
+  activeDays: number
+  /** Titles of goals the user already has. */
+  goals: string[]
+}
+
 export type MentorRequest =
   | { mode: 'plan'; lang: MentorLang; context: MentorContext; date: string; note?: string }
   | { mode: 'chat'; lang: MentorLang; context: MentorContext; messages: ChatMessage[] }
   | { mode: 'brief'; lang: MentorLang; context: MentorContext; kind: BriefKind }
+  | {
+      mode: 'intake'
+      lang: MentorLang
+      about: IntakeAbout
+      profile: IntakeProfile
+      messages: ChatMessage[]
+    }
+  | {
+      mode: 'roadmap'
+      lang: MentorLang
+      context: MentorContext
+      profile: IntakeProfile
+      /** The user's wish for another version ("fewer theory, more practice"). */
+      note?: string
+    }
+
+export interface IntakeResponse {
+  /** The mentor's next line: usually one question. */
+  reply: string
+  /** Quick answers to that question (buttons); the user may always write their own. */
+  options: string[]
+  /** Everything known so far, merged with the previous profile. */
+  profile: IntakeProfile
+  /** Enough is known to propose a plan. */
+  done: boolean
+}
+
+export interface RoadmapStage {
+  id: string
+  title: string
+  outcome: string
+  weeks?: number
+}
+
+export interface RoadmapTask {
+  title: string
+  stageId: string
+  estimateMin?: number
+  plannedDate?: string
+  /** What exactly to do, and with what. */
+  notes?: string
+}
+
+export interface RoadmapResponse {
+  title: string
+  /** The approach in 2–3 sentences. */
+  summary: string
+  stages: RoadmapStage[]
+  /** Concrete tasks for the first one or two weeks. */
+  tasks: RoadmapTask[]
+  /** Facts about the user worth remembering. */
+  notes: string[]
+}
 
 /** A proposed block: an existing task (taskRef) or a new item by title. */
 export interface PlanBlock {
@@ -116,7 +205,12 @@ export interface BriefResponse {
   focus: string[]
 }
 
-export type MentorResponse = PlanResponse | ChatResponse | BriefResponse
+export type MentorResponse =
+  | PlanResponse
+  | ChatResponse
+  | BriefResponse
+  | IntakeResponse
+  | RoadmapResponse
 
 export type MentorErrorCode = 'rate_limited' | 'busy' | 'unavailable' | 'bad_request' | 'failed'
 export interface MentorError {
@@ -235,6 +329,98 @@ export function parseBrief(raw: unknown, refs: ReadonlySet<string>): BriefRespon
   return { text: (raw.text as string).trim(), focus: focus.slice(0, 5) }
 }
 
+const PROFILE_TEXT = [
+  'title',
+  'subject',
+  'level',
+  'background',
+  'motivation',
+  'success',
+  'schedule',
+  'style',
+  'constraints',
+] as const
+
+/** The well-formed part of a profile; unknown keys and odd values are dropped. */
+export function cleanProfile(raw: unknown): IntakeProfile {
+  if (!isObj(raw)) return {}
+  const out: IntakeProfile = {}
+  for (const key of PROFILE_TEXT) if (str(raw[key], 400)) out[key] = (raw[key] as string).trim()
+  if (typeof raw.targetDate === 'string' && DATE.test(raw.targetDate)) out.targetDate = raw.targetDate
+  const weekly = Number(raw.weeklyMinutes)
+  if (Number.isFinite(weekly) && weekly >= 15 && weekly <= 6000) out.weeklyMinutes = Math.round(weekly)
+  return out
+}
+
+/**
+ * Keeps the earlier answers: a model that forgets a field must not erase it. A deadline that is
+ * not in the future ("by summer" read as the summer just gone) is dropped.
+ */
+export function parseIntake(
+  raw: unknown,
+  previous: IntakeProfile = {},
+  today?: string,
+): IntakeResponse | null {
+  if (!isObj(raw) || !str(raw.reply, 2000)) return null
+  const profile = { ...previous, ...cleanProfile(raw.profile) }
+  if (today && profile.targetDate && profile.targetDate <= today) delete profile.targetDate
+  const options = (Array.isArray(raw.options) ? raw.options : [])
+    .filter((o): o is string => str(o, 80))
+    .map((o) => o.trim())
+  return {
+    reply: (raw.reply as string).trim(),
+    options: [...new Set(options)].slice(0, 6),
+    profile,
+    done: raw.done === true,
+  }
+}
+
+export function parseRoadmap(raw: unknown): RoadmapResponse | null {
+  if (!isObj(raw) || !str(raw.title, 120) || !Array.isArray(raw.stages)) return null
+  const stages: RoadmapStage[] = []
+  for (const s of raw.stages) {
+    if (!isObj(s) || !str(s.title, 120) || !str(s.outcome, 400)) continue
+    const id = str(s.id, 20) ? (s.id as string).trim() : `s${stages.length + 1}`
+    if (stages.some((x) => x.id === id)) continue
+    const weeks = Number(s.weeks)
+    stages.push({
+      id,
+      title: (s.title as string).trim(),
+      outcome: (s.outcome as string).trim(),
+      ...(Number.isFinite(weeks) && weeks > 0 && weeks <= 52 ? { weeks: Math.round(weeks) } : {}),
+    })
+  }
+  if (stages.length === 0) return null
+  const ids = new Set(stages.map((s) => s.id))
+  const tasks: RoadmapTask[] = []
+  for (const t of Array.isArray(raw.tasks) ? raw.tasks : []) {
+    if (!isObj(t) || !str(t.title, 200)) continue
+    const estimate = Number(t.estimateMin)
+    tasks.push({
+      title: (t.title as string).trim(),
+      // A task tied to an unknown stage goes to the first one rather than being lost.
+      stageId: typeof t.stageId === 'string' && ids.has(t.stageId) ? t.stageId : stages[0]!.id,
+      ...(Number.isFinite(estimate) && estimate >= 5 && estimate <= 600
+        ? { estimateMin: Math.round(estimate) }
+        : {}),
+      ...(typeof t.plannedDate === 'string' && DATE.test(t.plannedDate)
+        ? { plannedDate: t.plannedDate }
+        : {}),
+      ...(str(t.notes, 1000) ? { notes: (t.notes as string).trim() } : {}),
+    })
+  }
+  const notes = (Array.isArray(raw.notes) ? raw.notes : [])
+    .filter((n): n is string => str(n, 300))
+    .map((n) => n.trim())
+  return {
+    title: (raw.title as string).trim(),
+    summary: str(raw.summary, 2000) ? (raw.summary as string).trim() : '',
+    stages: stages.slice(0, 8),
+    tasks: tasks.slice(0, 24),
+    notes: notes.slice(0, 6),
+  }
+}
+
 /** Every ref the context exposes: the only ones a response may use. */
 export function contextRefs(ctx: MentorContext) {
   return new Set([...ctx.tasks.map((t) => t.ref), ...ctx.blocks.map((b) => b.ref)])
@@ -260,9 +446,46 @@ export function readableRefs(text: string, ctx: MentorContext, lang: MentorLang)
     )
 }
 
+/** A conversation that ends with the user's turn, or null. */
+function parseMessages(raw: unknown): ChatMessage[] | null {
+  if (!Array.isArray(raw) || raw.length === 0 || raw.length > 40) return null
+  const messages = raw.filter(
+    (m): m is ChatMessage =>
+      isObj(m) && (m.role === 'user' || m.role === 'assistant') && str(m.content, 8000),
+  )
+  return messages.length > 0 && messages[messages.length - 1]!.role === 'user' ? messages : null
+}
+
 /** Structural check of an incoming request (server side). Bounded sizes keep prompts cheap. */
 export function parseRequest(raw: unknown): MentorRequest | null {
   if (!isObj(raw) || (raw.lang !== 'ru' && raw.lang !== 'en')) return null
+  if (raw.mode === 'intake') {
+    const about = raw.about
+    const messages = parseMessages(raw.messages)
+    if (
+      !messages ||
+      !isObj(about) ||
+      !str(about.today, 20) ||
+      !isObj(about.workHours) ||
+      (about.goals !== undefined && !Array.isArray(about.goals))
+    ) {
+      return null
+    }
+    return {
+      mode: 'intake',
+      lang: raw.lang,
+      about: {
+        today: about.today as string,
+        weekday: str(about.weekday, 20) ? (about.weekday as string) : '',
+        workHours: about.workHours as IntakeAbout['workHours'],
+        avgTrackedMin: Number(about.avgTrackedMin) || 0,
+        activeDays: Number(about.activeDays) || 0,
+        goals: ((about.goals as unknown[] | undefined) ?? []).filter((g): g is string => str(g, 200)).slice(0, 20),
+      },
+      profile: cleanProfile(raw.profile),
+      messages,
+    }
+  }
   const ctx = raw.context
   if (
     !isObj(ctx) ||
@@ -292,18 +515,20 @@ export function parseRequest(raw: unknown): MentorRequest | null {
       ...(str(raw.note, 500) ? { note: raw.note as string } : {}),
     }
   }
-  if (
-    raw.mode === 'chat' &&
-    Array.isArray(raw.messages) &&
-    raw.messages.length > 0 &&
-    raw.messages.length <= 40
-  ) {
-    const messages = raw.messages.filter(
-      (m): m is ChatMessage =>
-        isObj(m) && (m.role === 'user' || m.role === 'assistant') && str(m.content, 8000),
-    )
-    if (messages.length === 0 || messages[messages.length - 1]!.role !== 'user') return null
-    return { mode: 'chat', lang: raw.lang, context, messages }
+  if (raw.mode === 'chat') {
+    const messages = parseMessages(raw.messages)
+    return messages ? { mode: 'chat', lang: raw.lang, context, messages } : null
+  }
+  if (raw.mode === 'roadmap' && optStr(raw.note, 500)) {
+    const profile = cleanProfile(raw.profile)
+    if (!profile.subject) return null
+    return {
+      mode: 'roadmap',
+      lang: raw.lang,
+      context,
+      profile,
+      ...(str(raw.note, 500) ? { note: raw.note as string } : {}),
+    }
   }
   if (raw.mode === 'brief' && (raw.kind === 'morning' || raw.kind === 'evening')) {
     return { mode: 'brief', lang: raw.lang, context, kind: raw.kind }

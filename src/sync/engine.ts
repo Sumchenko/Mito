@@ -32,6 +32,7 @@ const PUSH_BATCH = 200
 const PULL_BATCH = 500
 const CURSOR = 'cursor'
 const OWNER = 'owner'
+const COLLECTIONS = 'collections'
 
 const getState = async <T>(db: MitoDB, key: string) => (await db.syncState.get(key))?.value as T | undefined
 
@@ -82,9 +83,16 @@ export async function push(db: MitoDB, remote: Remote) {
 export async function pull(db: MitoDB, remote: Remote) {
   let received = 0
   let cursor = (await getState<number>(db, CURSOR)) ?? 0
+  // Older versions skipped rows of collections they did not know yet but moved the cursor past
+  // them. When the set of collections grows, pull everything once more (safe: newer wins).
+  const known = SYNCED_TABLES.join(',')
+  if ((await getState<string>(db, COLLECTIONS)) !== known) cursor = 0
   for (;;) {
     const rows = await remote.pull(cursor, PULL_BATCH)
-    if (rows.length === 0) return received
+    if (rows.length === 0) {
+      await db.syncState.put({ key: COLLECTIONS, value: known })
+      return received
+    }
 
     await db.transaction('rw', [...SYNCED_TABLES.map((t) => db.table(t)), db.syncState], async () => {
       markRemote()
@@ -96,7 +104,10 @@ export async function pull(db: MitoDB, remote: Remote) {
         if (newer.length) await db.table(table).bulkPut(newer)
       }
       cursor = rows[rows.length - 1]!.rev
-      await db.syncState.put({ key: CURSOR, value: cursor })
+      await db.syncState.bulkPut([
+        { key: CURSOR, value: cursor },
+        { key: COLLECTIONS, value: known },
+      ])
     })
     received += rows.length
     if (rows.length < PULL_BATCH) return received

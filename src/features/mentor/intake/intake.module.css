@@ -1,0 +1,340 @@
+/* ---------- Intake: conversation + what the mentor understood ---------- */
+.intake {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+  gap: var(--space-4);
+  align-items: start;
+}
+.talk {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.messages {
+  min-height: 260px;
+  max-height: 56vh;
+}
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card-secondary);
+  border: 1px solid var(--stroke-divider);
+}
+.side-title {
+  font-size: var(--text-body);
+  font-weight: 600;
+}
+.progress {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--stroke-divider);
+  overflow: hidden;
+}
+.progress span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width var(--dur-slow) var(--ease-out);
+}
+.facts {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+}
+.facts dt {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.facts dd {
+  margin: 0;
+  line-height: var(--leading-body);
+}
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.field > span {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.field textarea {
+  min-height: 52px;
+}
+.pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+}
+/* Confirming: the card gets room, short fields go two by two, so the button stays in view. */
+.intake[data-phase='confirm'] {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+}
+.intake[data-phase='confirm'] .form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px var(--space-3);
+}
+.intake[data-phase='confirm'] .field:has(textarea),
+.intake[data-phase='confirm'] .pair {
+  grid-column: 1 / -1;
+}
+@media (max-width: 1000px) {
+  .intake,
+  .intake[data-phase='confirm'] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .messages {
+    max-height: none;
+  }
+}
+
+/* ---------- Roadmap preview ---------- */
+.roadmap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.roadmap-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.roadmap-title {
+  font-family: var(--font-display);
+  font-size: var(--text-subtitle);
+  line-height: var(--leading-subtitle);
+  font-weight: 600;
+}
+.roadmap-body {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+.roadmap-body > section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+@media (max-width: 900px) {
+  .roadmap-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Stages read as a path: numbered steps joined by a line. */
+.stages {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.stage {
+  position: relative;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: var(--space-3);
+  padding-bottom: var(--space-4);
+}
+.stage:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 13px;
+  top: 30px;
+  bottom: 2px;
+  width: 2px;
+  background: var(--stroke-divider);
+}
+.stage-no {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent-subtle);
+  color: var(--accent-text);
+  font-weight: 600;
+  font-size: var(--text-caption);
+}
+.stage:first-child .stage-no {
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+.stage-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 3px;
+  min-width: 0;
+}
+.stage-text b {
+  font-weight: 600;
+}
+.stage-text span {
+  color: var(--text-secondary);
+  line-height: var(--leading-body);
+}
+.stage-text small,
+.task-text small {
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.days {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.day {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.day-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: capitalize;
+}
+.tasks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.task {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-2);
+  align-items: start;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--accent) 6%, var(--bg-card));
+  border-left: 3px solid var(--accent);
+}
+.task-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.task-text b {
+  font-weight: 600;
+}
+.task-text span {
+  color: var(--text-secondary);
+  font-size: var(--text-caption);
+  line-height: var(--leading-caption);
+}
+.notes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text-secondary);
+}
+.roadmap-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--stroke-divider);
+}
+.again-input {
+  flex: 1 1 220px;
+  width: auto;
+}
+
+/* ---------- Goals on the mentor page ---------- */
+.goals {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+.goal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-3);
+}
+.goal-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  background: var(--bg-card);
+  border: 1px solid var(--stroke-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+.goal-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+.stage-bar {
+  display: flex;
+  gap: 3px;
+}
+.stage-bar span {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--stroke-divider);
+}
+.stage-bar span[data-status='done'] {
+  background: var(--accent);
+}
+.stage-bar span[data-status='active'] {
+  background: color-mix(in srgb, var(--accent) 45%, var(--stroke-divider));
+}
+.goal-stage {
+  font-size: var(--text-caption);
+}
+.new-goal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 100px;
+  border-radius: var(--radius-card);
+  border: 1px dashed var(--stroke-control);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  cursor: pointer;
+}
+.new-goal:hover {
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.resume {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-3);
+  border-radius: var(--radius-lg);
+  background: var(--accent-subtle);
+  color: var(--accent-text);
+}

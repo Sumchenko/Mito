@@ -1,4 +1,10 @@
-import type { MentorRequest, MentorResponse, PlanBlock } from '../../src/mentor/protocol.ts'
+import type {
+  IntakeProfile,
+  MentorRequest,
+  MentorResponse,
+  PlanBlock,
+  RoadmapTask,
+} from '../../src/mentor/protocol.ts'
 
 const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5))
 const toTime = (m: number) =>
@@ -6,12 +12,15 @@ const toTime = (m: number) =>
 
 /**
  * A rule-based mentor for development and tests: plans unscheduled tasks into the free time of
- * the day by deadline and priority, answers chat with a short echo, and briefs from counts.
+ * the day by deadline and priority, answers chat with a short echo, and briefs from counts. The
+ * intake asks the essential questions in order; the roadmap is a fixed three-stage template.
  * It exercises the whole pipeline without an API key; the real models do the thinking.
  */
 export function mockRespond(req: MentorRequest): MentorResponse {
-  const ctx = req.context
   const ru = req.lang === 'ru'
+  if (req.mode === 'intake') return mockIntake(req.profile, lastUser(req.messages), ru)
+  if (req.mode === 'roadmap') return mockRoadmap(req.profile, req.context.today, ru)
+  const ctx = req.context
 
   if (req.mode === 'plan') {
     const busy = ctx.blocks
@@ -63,7 +72,7 @@ export function mockRespond(req: MentorRequest): MentorResponse {
     return { text, focus: due.slice(0, 3).map((t) => t.ref) }
   }
 
-  const last = req.messages[req.messages.length - 1]!.content
+  const last = lastUser(req.messages)
   const wantsTask = /созда|добав|create|add/i.test(last)
   return {
     reply: ru
@@ -78,5 +87,71 @@ export function mockRespond(req: MentorRequest): MentorResponse {
           },
         ]
       : [],
+  }
+}
+
+const lastUser = (messages: { role: string; content: string }[]) =>
+  [...messages].reverse().find((m) => m.role === 'user')?.content.trim() ?? ''
+
+const QUESTIONS = {
+  level: {
+    ru: ['Что вы уже знаете в этой теме?', ['С нуля', 'Немного пробовал', 'Есть база']],
+    en: ['What do you already know about it?', ['From scratch', 'Tried a bit', 'I have the basics']],
+  },
+  success: {
+    ru: ['Какой результат будет для вас успехом?', ['Сделать свой проект', 'Найти работу']],
+    en: ['What result would count as success?', ['Build my own project', 'Get a job']],
+  },
+  weeklyMinutes: {
+    ru: ['Сколько времени в неделю вы готовы уделять?', ['2–3 часа', '5 часов', '10 часов']],
+    en: ['How much time a week can you give it?', ['2–3 hours', '5 hours', '10 hours']],
+  },
+} as const
+
+function mockIntake(previous: IntakeProfile, answer: string, ru: boolean): MentorResponse {
+  const profile: IntakeProfile = { ...previous }
+  // Each answer fills the first field still missing, in the order the questions are asked.
+  if (!profile.subject) {
+    profile.subject = answer.slice(0, 200)
+    profile.title = answer.slice(0, 60)
+  } else if (!profile.level) profile.level = answer.slice(0, 200)
+  else if (!profile.success) profile.success = answer.slice(0, 200)
+  else if (!profile.weeklyMinutes) {
+    const hours = Number(answer.match(/\d+/)?.[0] ?? 3)
+    profile.weeklyMinutes = Math.min(6000, Math.max(30, hours * 60))
+  }
+  const next = (['level', 'success', 'weeklyMinutes'] as const).find((k) => !profile[k])
+  if (!next) {
+    return {
+      reply: ru ? '(тестовый ментор) Понял. Составлю план.' : '(test mentor) Got it. A plan comes next.',
+      options: [],
+      profile,
+      done: true,
+    }
+  }
+  const [question, options] = QUESTIONS[next][ru ? 'ru' : 'en']
+  return { reply: `(${ru ? 'тестовый ментор' : 'test mentor'}) ${question}`, options: [...options], profile, done: false }
+}
+
+function mockRoadmap(profile: IntakeProfile, today: string, ru: boolean): MentorResponse {
+  const subject = profile.subject ?? 'the subject'
+  const day = (n: number) => new Date(Date.parse(`${today}T12:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10)
+  const tasks: RoadmapTask[] = [1, 2, 4, 5, 7].map((d, i) => ({
+    title: ru ? `Занятие ${i + 1}: ${subject}` : `Session ${i + 1}: ${subject}`,
+    stageId: 's1',
+    estimateMin: 45,
+    plannedDate: day(d),
+    notes: ru ? 'Тестовое задание' : 'Test task',
+  }))
+  return {
+    title: profile.title ?? subject,
+    summary: ru ? '(тестовый ментор) Три этапа от основ к проекту.' : '(test mentor) Three stages from basics to a project.',
+    stages: [
+      { id: 's1', title: ru ? 'Основы' : 'Basics', outcome: ru ? 'Понимает базовые понятия' : 'Knows the basics', weeks: 2 },
+      { id: 's2', title: ru ? 'Практика' : 'Practice', outcome: ru ? 'Решает типовые задачи' : 'Solves typical problems', weeks: 3 },
+      { id: 's3', title: ru ? 'Проект' : 'Project', outcome: ru ? 'Сделал свой проект' : 'Built a project', weeks: 3 },
+    ],
+    tasks,
+    notes: profile.level ? [ru ? `Уровень: ${profile.level}` : `Level: ${profile.level}`] : [],
   }
 }

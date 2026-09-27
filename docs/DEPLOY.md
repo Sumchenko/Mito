@@ -79,7 +79,7 @@ bash /root/setup-server.sh "<публичный ключ выкладки>"
 - Цепочка провайдеров: Groq → Gemini Flash → Gemini Flash-Lite; при лимите, перегрузке или ошибке запрос
   уходит следующему. Порядок — `MENTOR_PROVIDERS` (`groq,gemini,gemini-lite`), модели — `MENTOR_GROQ_MODEL`,
   `MENTOR_GEMINI_MODEL`, `MENTOR_GEMINI_LITE_MODEL`.
-- Лимиты (переменные окружения службы): `MENTOR_IP_DAY` (30), `MENTOR_IP_MINUTE` (6),
+- Лимиты (переменные окружения службы): `MENTOR_IP_DAY` (60), `MENTOR_IP_MINUTE` (10),
   `MENTOR_GLOBAL_DAY` (800).
 - Смена ключа (истёк или отозван): новый ключ → секрет GitHub с тем же именем → Actions → Deploy →
   Run workflow. Workflow перепишет `/etc/mito/mentor.env` и перезапустит службу.

@@ -1,6 +1,8 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useState } from 'react'
 import { dayRange } from './dates'
+import { goalsRepo } from './repos/goals'
+import { mentorNotesRepo } from './repos/mentorNotes'
 import { projectsRepo } from './repos/projects'
 import { tagsRepo } from './repos/tags'
 import { tasksRepo } from './repos/tasks'
@@ -31,6 +33,15 @@ export const useTasksByProject = (projectId: Id | null) =>
 
 export const useSubtasks = (parentId: Id) =>
   useLiveQuery(() => tasksRepo.listSubtasks(parentId), [parentId])
+
+export const useGoals = () => useLiveQuery(() => goalsRepo.list(), [])
+
+export const useGoal = (id: Id | undefined) =>
+  useLiveQuery(() => (id ? goalsRepo.get(id) : undefined), [id])
+
+/** Newest first; with a goal — its notes and the general ones. */
+export const useMentorNotes = (goalId?: Id) =>
+  useLiveQuery(() => mentorNotesRepo.list(goalId), [goalId])
 
 /** The running entry: `undefined` while loading, `null` when nothing runs. */
 export const useRunningEntry = () =>

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { exportBackup, restoreBackup } from './backup'
 import { toLocalDate } from './dates'
 import { db } from './db'
+import { goalsRepo, type GoalInput } from './repos/goals'
+import { mentorNotesRepo } from './repos/mentorNotes'
 import { projectsRepo } from './repos/projects'
 import { tagsRepo } from './repos/tags'
 import { tasksRepo } from './repos/tasks'
@@ -251,6 +253,16 @@ describe('backup', () => {
     expect(await tasksRepo.listByProject(project.id)).toHaveLength(1)
   })
 
+  it('restores backups made before goals existed', async () => {
+    await tasksRepo.create({ title: 'Old' })
+    const old = JSON.parse(JSON.stringify(await exportBackup()))
+    delete old.data.goals
+    delete old.data.mentorNotes
+    old.schemaVersion = 2
+    const counts = await restoreBackup(old)
+    expect(counts).toMatchObject({ tasks: 1, goals: 0, mentorNotes: 0 })
+  })
+
   it('refuses foreign files and newer versions', async () => {
     await expect(restoreBackup({ hello: 'world' })).rejects.toMatchObject({ code: 'backup_invalid' })
     const newer = { ...(await exportBackup()), schemaVersion: 999 }
@@ -263,5 +275,92 @@ describe('backup', () => {
     ;(broken.data.tasks as unknown[]).push({ nope: true })
     await expect(restoreBackup(broken)).rejects.toMatchObject({ code: 'backup_invalid' })
     expect(await db.tasks.count()).toBe(1)
+  })
+})
+
+describe('goals', () => {
+  const input: GoalInput = {
+    title: 'Python for data analysis',
+    profile: { subject: 'Python', level: 'beginner', motivation: 'switch jobs' },
+    stages: [
+      { id: 's1', title: 'Syntax', outcome: 'Writes small scripts', weeks: 2 },
+      { id: 's2', title: 'pandas', outcome: 'Cleans a CSV' },
+      { id: 's3', title: 'Project', outcome: 'Publishes an analysis' },
+    ],
+    weeklyMinutes: 300,
+  }
+
+  it('creates a goal with its own project and the first stage active', async () => {
+    const goal = await goalsRepo.create(input)
+    expect(goal.stages.map((s) => s.status)).toEqual(['active', 'upcoming', 'upcoming'])
+    const projects = await projectsRepo.list()
+    expect(projects.find((p) => p.id === goal.projectId)?.name).toBe('Python for data analysis')
+    expect(await goalsRepo.list()).toHaveLength(1)
+  })
+
+  it('rejects goals without stages or with duplicate stage ids', async () => {
+    await expect(goalsRepo.create({ ...input, stages: [] })).rejects.toMatchObject({ code: 'invalid' })
+    await expect(
+      goalsRepo.create({ ...input, stages: [input.stages[0]!, input.stages[0]!] }),
+    ).rejects.toMatchObject({ code: 'invalid' })
+  })
+
+  it('moves through stages and records checks', async () => {
+    const goal = await goalsRepo.create(input)
+    await goalsRepo.addCheck(goal.id, 's1', { at: 1, score: 0.8, passed: true, gaps: ['loops'] })
+    const next = await goalsRepo.completeStage(goal.id, 's1')
+    expect(next?.id).toBe('s2')
+    const saved = await goalsRepo.get(goal.id)
+    expect(saved?.stages.map((s) => s.status)).toEqual(['done', 'active', 'upcoming'])
+    expect(saved?.stages[0]?.checks).toHaveLength(1)
+    await expect(goalsRepo.addCheck(goal.id, 's1', { at: 1, score: 2, passed: true, gaps: [] })).rejects.toMatchObject({
+      code: 'invalid',
+    })
+  })
+
+  it('links tasks, and subtasks inherit the goal and stage', async () => {
+    const goal = await goalsRepo.create(input)
+    const task = await tasksRepo.create({ title: 'Loops', projectId: goal.projectId, goalId: goal.id, stageId: 's1' })
+    const sub = await tasksRepo.create({ title: 'Exercises', parentId: task.id })
+    expect(await tasksRepo.get(sub.id)).toMatchObject({ goalId: goal.id, stageId: 's1' })
+    await tasksRepo.update(task.id, { stageId: 's2' })
+    expect((await tasksRepo.get(task.id))?.stageId).toBe('s2')
+    await expect(tasksRepo.create({ title: 'x', goalId: 'nope' })).rejects.toMatchObject({ code: 'not_found' })
+  })
+
+  it('removes the goal but keeps its project and tasks', async () => {
+    const goal = await goalsRepo.create(input)
+    await tasksRepo.create({ title: 'Loops', projectId: goal.projectId, goalId: goal.id })
+    await goalsRepo.remove(goal.id)
+    expect(await goalsRepo.list()).toHaveLength(0)
+    expect(await tasksRepo.listByProject(goal.projectId!)).toHaveLength(1)
+  })
+})
+
+describe('mentor notes', () => {
+  it('lists general notes and those of the goal, newest first', async () => {
+    const goal = await goalsRepo.create({
+      title: 'G',
+      profile: { subject: 'G' },
+      stages: [{ id: 's1', title: 'S', outcome: 'O' }],
+    })
+    await mentorNotesRepo.add({ text: 'Studies best in the morning', source: 'mentor' })
+    await mentorNotesRepo.add({ text: 'Stuck on recursion', source: 'mentor', goalId: goal.id })
+    await mentorNotesRepo.add({ text: 'Other goal', source: 'user', goalId: 'other' })
+    expect((await mentorNotesRepo.list(goal.id)).map((n) => n.text).sort()).toEqual([
+      'Stuck on recursion',
+      'Studies best in the morning',
+    ])
+    expect(await mentorNotesRepo.list()).toHaveLength(3)
+  })
+
+  it('keeps notes short and removes them as tombstones', async () => {
+    await expect(mentorNotesRepo.add({ text: 'x'.repeat(301), source: 'user' })).rejects.toMatchObject({
+      code: 'invalid',
+    })
+    const note = await mentorNotesRepo.add({ text: 'Fact', source: 'user' })
+    await mentorNotesRepo.remove(note.id)
+    expect(await mentorNotesRepo.list()).toHaveLength(0)
+    expect((await db.mentorNotes.get(note.id))?.deletedAt).toBeDefined()
   })
 })

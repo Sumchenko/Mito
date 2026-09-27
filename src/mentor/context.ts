@@ -11,7 +11,7 @@ import {
   type TimeEntry,
   type Timestamp,
 } from '@/data'
-import type { ContextBlock, ContextTask, MentorContext } from './protocol'
+import type { ContextBlock, ContextTask, IntakeAbout, MentorContext } from './protocol'
 
 /** Days of history the mentor looks back on. */
 export const HISTORY_DAYS = 14
@@ -218,5 +218,17 @@ export function buildContext(input: ContextInput): { context: MentorContext; ref
           })),
       },
     },
+  }
+}
+
+/** The light picture of the user the intake needs: rhythm and existing goals, no task lists. */
+export function aboutUser(context: MentorContext, goals: readonly string[]): IntakeAbout {
+  return {
+    today: context.today,
+    weekday: context.weekday,
+    workHours: context.workHours,
+    avgTrackedMin: context.history.avgTrackedMin,
+    activeDays: context.history.activeDays,
+    goals: [...goals],
   }
 }

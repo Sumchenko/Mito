@@ -1,0 +1,267 @@
+/* The invitation: words on the left, the way up the mountain on the right. */
+.invite {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  min-height: 300px;
+  margin-bottom: var(--space-3);
+  overflow: hidden;
+  background: var(--bg-card);
+  border: 1px solid var(--stroke-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+
+.scene {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 66%;
+  z-index: -1;
+  /* Melts into the card on the left, so the words sit on calm ground, not on a picture. */
+  mask-image: linear-gradient(to right, transparent 0, #000 42%);
+}
+.landscape,
+.route {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* ---------- The route ---------- */
+.route {
+  --trail: rgb(255 255 255 / 0.92);
+  --camp: #fff;
+  overflow: visible;
+}
+:global(:root[data-theme='dark']) .route {
+  --trail: rgb(226 236 252 / 0.75);
+  --camp: #dfe8f8;
+}
+.contour {
+  display: none;
+  fill: none;
+  stroke: color-mix(in srgb, var(--accent) 40%, transparent);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+.trail {
+  fill: none;
+  stroke: var(--trail);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-dasharray: 2 9;
+  vector-effect: non-scaling-stroke;
+}
+.reveal {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 24;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+  animation: climb 1.8s cubic-bezier(0.22, 1, 0.36, 1) 0.35s backwards;
+}
+.camp {
+  fill: var(--camp);
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  vector-effect: non-scaling-stroke;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: camp 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+.flag line {
+  stroke: var(--camp);
+  stroke-width: 2;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+.flag path {
+  fill: var(--accent);
+}
+.flag {
+  transform-box: fill-box;
+  transform-origin: 0 100%;
+  animation: raise 0.7s cubic-bezier(0.16, 1, 0.3, 1) 1.9s backwards;
+}
+
+@keyframes climb {
+  from {
+    stroke-dashoffset: 1;
+  }
+}
+@keyframes camp {
+  from {
+    transform: scale(0);
+  }
+}
+@keyframes raise {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+/* Strict style: no painted scene, the same way up as a line drawing. */
+:global(:root[data-style='strict']) .landscape {
+  display: none;
+}
+:global(:root[data-style='strict']) .contour {
+  display: block;
+}
+:global(:root[data-style='strict']) .route {
+  --trail: var(--accent);
+  --camp: var(--bg-card);
+}
+:global(:root[data-style='strict']) .flag line {
+  stroke: var(--text-secondary);
+}
+
+/* ---------- Words and the field ---------- */
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: min(100%, 500px);
+  padding: var(--space-8) var(--space-6);
+}
+.title {
+  font-family: var(--font-display);
+  font-size: 32px;
+  line-height: 40px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+.text {
+  color: var(--text-secondary);
+  line-height: var(--leading-body);
+  text-wrap: pretty;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: var(--space-2);
+  padding: 4px 4px 4px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--stroke-control);
+  border-bottom-color: var(--stroke-control-bottom);
+  background: var(--bg-control-input, var(--bg-control));
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.04);
+  transition: border-color var(--dur-fast) linear;
+}
+/* Fluent's signature for a text field in focus: the accent underline. */
+.field:focus-within {
+  border-bottom-color: var(--accent);
+  box-shadow: inset 0 -1px 0 var(--accent), 0 2px 8px rgb(0 0 0 / 0.04);
+}
+.field input {
+  flex: 1;
+  min-width: 0;
+  height: 38px;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  outline: none;
+}
+.field input::placeholder {
+  color: var(--text-tertiary);
+}
+.go {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 14px 0 16px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--dur-fast) linear;
+}
+.go svg {
+  font-size: 16px;
+  transition: transform var(--dur-normal) var(--ease-out);
+}
+.go:hover {
+  background: var(--accent-hover);
+}
+.go:hover svg {
+  transform: translateX(2px);
+}
+.go:active {
+  background: var(--accent-pressed);
+}
+.go:focus-visible {
+  outline: 2px solid var(--stroke-focus-outer);
+  outline-offset: 2px;
+}
+
+.examples {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 16px;
+  row-gap: 6px;
+  font-size: var(--text-caption);
+  color: var(--text-tertiary);
+}
+.examples button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent-text);
+  font: inherit;
+  text-decoration: underline dotted color-mix(in srgb, var(--accent-text) 50%, transparent);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.examples button:hover {
+  text-decoration-style: solid;
+  text-decoration-color: currentColor;
+}
+.examples button:focus-visible {
+  outline: 2px solid var(--stroke-focus-outer);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* ---------- Narrow screens: the mountain on top, the words below ---------- */
+@media (max-width: 760px) {
+  .invite {
+    flex-direction: column;
+    align-items: stretch;
+    min-height: 0;
+  }
+  .scene {
+    position: relative;
+    inset: auto;
+    width: 100%;
+    height: 170px;
+    mask-image: linear-gradient(to bottom, #000 55%, transparent);
+  }
+  .body {
+    width: 100%;
+    padding: 0 var(--space-4) var(--space-5);
+    margin-top: calc(-1 * var(--space-4));
+  }
+  .title {
+    font-size: 24px;
+    line-height: 32px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .camp,
+  .flag {
+    animation: none;
+  }
+}

@@ -1,18 +1,22 @@
 import { describe, expect, it } from 'vitest'
 import {
   parseChat,
+  parseIntake,
   parsePlan,
   parseRequest,
+  parseRoadmap,
   readableRefs,
+  type IntakeResponse,
   type MentorContext,
   type MentorRequest,
+  type RoadmapResponse,
 } from '../../src/mentor/protocol.ts'
 import { loadConfig } from './config.ts'
 import { createLimiter } from './limits.ts'
 import { extractJson, MentorFailure, runMentor } from './mentor.ts'
 import { mockRespond } from './mock.ts'
-import { dates } from './prompts.ts'
-import { openAICompatible, ProviderError, type Provider } from './providers.ts'
+import { buildMessages, dates } from './prompts.ts'
+import { mockProvider, openAICompatible, ProviderError, type Provider } from './providers.ts'
 
 const context: MentorContext = {
   now: '2026-09-27T10:05',
@@ -178,6 +182,102 @@ describe('runMentor', () => {
     expect(await p.complete([], plan)).toContain('hi')
     expect(seen?.url).toBe('https://x/v1/chat/completions')
     expect(seen?.body.response_format).toEqual({ type: 'json_object' })
+  })
+})
+
+describe('learning goals', () => {
+  const about = {
+    today: '2026-09-27',
+    weekday: 'Sunday',
+    workHours: { start: '09:00', end: '18:00' },
+    avgTrackedMin: 120,
+    activeDays: 10,
+    goals: [],
+  }
+  const intake: MentorRequest = {
+    mode: 'intake',
+    lang: 'ru',
+    about,
+    profile: { subject: 'Python', weeklyMinutes: 300 },
+    messages: [{ role: 'user', content: 'Хочу выучить Python' }],
+  }
+
+  it('accepts intake requests without the full context', () => {
+    expect(parseRequest(intake)).toMatchObject({ mode: 'intake', profile: { subject: 'Python' } })
+    expect(parseRequest({ ...intake, messages: [] })).toBeNull()
+    expect(parseRequest({ ...intake, about: undefined })).toBeNull()
+  })
+
+  it('keeps earlier answers when the model forgets them', () => {
+    const out = parseIntake(
+      {
+        reply: 'Что уже знаете?',
+        options: ['С нуля', '', 'x'.repeat(100), 'С нуля'],
+        profile: { level: 'beginner', weeklyMinutes: 'soon', targetDate: 'tomorrow' },
+      },
+      { subject: 'Python', weeklyMinutes: 300 },
+    )
+    expect(out).toEqual({
+      reply: 'Что уже знаете?',
+      options: ['С нуля'],
+      profile: { subject: 'Python', weeklyMinutes: 300, level: 'beginner' },
+      done: false,
+    })
+    expect(parseIntake({ options: [] })).toBeNull()
+    const past = parseIntake({ reply: 'ok', profile: { targetDate: '2026-06-01' } }, {}, '2026-09-27')
+    expect(past?.profile.targetDate).toBeUndefined()
+  })
+
+  it('keeps the valid part of a roadmap', () => {
+    const out = parseRoadmap({
+      title: 'Python',
+      summary: 'Practice first',
+      stages: [
+        { id: 's1', title: 'Basics', outcome: 'Writes scripts', weeks: 2 },
+        { id: 's1', title: 'Dup', outcome: 'x' },
+        { title: 'No outcome' },
+        { title: 'Data', outcome: 'Cleans a CSV', weeks: 400 },
+      ],
+      tasks: [
+        { title: 'Loops', stageId: 's1', estimateMin: 45, plannedDate: '2026-09-28' },
+        { title: 'Lost stage', stageId: 's9', estimateMin: 2 },
+        { stageId: 's1' },
+      ],
+      notes: ['Studies in the evening', 42],
+    })
+    expect(out?.stages).toEqual([
+      { id: 's1', title: 'Basics', outcome: 'Writes scripts', weeks: 2 },
+      { id: 's2', title: 'Data', outcome: 'Cleans a CSV' },
+    ])
+    expect(out?.tasks).toEqual([
+      { title: 'Loops', stageId: 's1', estimateMin: 45, plannedDate: '2026-09-28' },
+      { title: 'Lost stage', stageId: 's1' },
+    ])
+    expect(out?.notes).toEqual(['Studies in the evening'])
+    expect(parseRoadmap({ title: 'x', stages: [] })).toBeNull()
+  })
+
+  it('roadmap requests need a subject', () => {
+    const req = { mode: 'roadmap', lang: 'en', context, profile: { subject: 'Python' } }
+    expect(parseRequest(req)).toMatchObject({ mode: 'roadmap' })
+    expect(parseRequest({ ...req, profile: {} })).toBeNull()
+  })
+
+  it('puts the task and its format last in the prompt', () => {
+    const [system] = buildMessages(intake)
+    expect(system?.content.indexOf('PROFILE SO FAR')).toBeLessThan(system!.content.indexOf('TASK:'))
+    expect(system?.content).toContain('"subject":"Python"')
+  })
+
+  it('walks the mock through an intake to a roadmap', async () => {
+    const res = (await runMentor(intake, [mockProvider])).response as IntakeResponse
+    expect(res.profile.level).toBe('Хочу выучить Python')
+    const plan = (await runMentor(
+      { mode: 'roadmap', lang: 'ru', context, profile: { subject: 'Python' } },
+      [mockProvider],
+    )).response as RoadmapResponse
+    expect(plan.stages.length).toBeGreaterThan(0)
+    expect(plan.tasks.every((t) => t.plannedDate! > context.today)).toBe(true)
   })
 })
 

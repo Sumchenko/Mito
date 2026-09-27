@@ -55,6 +55,74 @@ export interface Task extends SyncMeta {
   dueDate?: LocalDate
   order: number
   completedAt?: Timestamp
+  /** Set for tasks of a learning plan: the goal and the stage they belong to. */
+  goalId?: Id
+  stageId?: string
+}
+
+export type GoalStatus = 'active' | 'paused' | 'done' | 'dropped'
+export type StageStatus = 'upcoming' | 'active' | 'done'
+
+/** A knowledge check at the end of a stage. */
+export interface StageCheck {
+  at: Timestamp
+  /** Share of the check answered well, 0…1. */
+  score: number
+  passed: boolean
+  /** Topics that need another pass, in the mentor's words. */
+  gaps: string[]
+}
+
+/** One step of a learning plan, with a concrete result ("can load and clean a CSV in pandas"). */
+export interface GoalStage {
+  /** Short id, unique within the goal ("s1"). */
+  id: string
+  title: string
+  outcome: string
+  /** Rough length in weeks, as planned. */
+  weeks?: number
+  status: StageStatus
+  checks?: StageCheck[]
+}
+
+/** What the mentor learned about the goal while getting to know the user. */
+export interface GoalProfile {
+  subject: string
+  level?: string
+  background?: string
+  motivation?: string
+  /** What counts as success for the user. */
+  success?: string
+  /** When and how the user can study (days, time of day). */
+  schedule?: string
+  /** Preferred ways to learn: video, books, practice… */
+  style?: string
+  constraints?: string
+}
+
+/**
+ * A learning goal the mentor leads the user to. Its tasks live in a project of its own, so the
+ * calendar, the timer and the statistics work with learning as with anything else.
+ */
+export interface Goal extends SyncMeta {
+  title: string
+  status: GoalStatus
+  profile: GoalProfile
+  stages: GoalStage[]
+  projectId?: Id
+  targetDate?: LocalDate
+  weeklyMinutes?: number
+  /** Last weekly meeting; the next one is due a week later. */
+  lastReviewAt?: Timestamp
+  order: number
+  completedAt?: Timestamp
+}
+
+/** The mentor's memory: short facts about the user it brings into every conversation. */
+export interface MentorNote extends SyncMeta {
+  text: string
+  goalId?: Id
+  source: 'mentor' | 'user'
 }
 
 export type TimeEntrySource = 'timer' | 'pomodoro' | 'manual'

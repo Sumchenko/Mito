@@ -1,8 +1,8 @@
 import { Dexie, type EntityTable } from 'dexie'
 import { outboxMiddleware, type OutboxEntry } from './outbox'
-import type { Project, Tag, Task, TimeBlock, TimeEntry } from './types'
+import type { Goal, MentorNote, Project, Tag, Task, TimeBlock, TimeEntry } from './types'
 
-export const SCHEMA_VERSION = 2
+export const SCHEMA_VERSION = 3
 
 /**
  * Local IndexedDB store. Index choices follow the hot queries:
@@ -16,6 +16,8 @@ export class MitoDB extends Dexie {
   tasks!: EntityTable<Task, 'id'>
   timeEntries!: EntityTable<TimeEntry, 'id'>
   timeBlocks!: EntityTable<TimeBlock, 'id'>
+  goals!: EntityTable<Goal, 'id'>
+  mentorNotes!: EntityTable<MentorNote, 'id'>
   /** Local changes waiting to be pushed to the server. */
   outbox!: EntityTable<OutboxEntry, 'key'>
   /** Sync bookkeeping: pull cursor, owner of the local data. */
@@ -32,6 +34,12 @@ export class MitoDB extends Dexie {
     })
     // Stage 7: sync bookkeeping. Existing data is untouched.
     this.version(2).stores({ outbox: 'key, seq', syncState: 'key' })
+    // Stage 8: learning goals and the mentor's notes; tasks know their goal.
+    this.version(3).stores({
+      tasks: 'id, projectId, parentId, status, plannedDate, dueDate, *tagIds, order, updatedAt, goalId',
+      goals: 'id, status, order, updatedAt',
+      mentorNotes: 'id, goalId, updatedAt',
+    })
     this.use(outboxMiddleware(() => this.outbox))
   }
 }
@@ -40,4 +48,4 @@ export const db = new MitoDB()
 
 /** Tables in dependency order — used by backup and seeding. */
 export const allTables = () =>
-  [db.projects, db.tags, db.tasks, db.timeEntries, db.timeBlocks] as const
+  [db.projects, db.tags, db.tasks, db.timeEntries, db.timeBlocks, db.goals, db.mentorNotes] as const

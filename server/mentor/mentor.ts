@@ -2,7 +2,9 @@ import {
   contextRefs,
   parseBrief,
   parseChat,
+  parseIntake,
   parsePlan,
+  parseRoadmap,
   type MentorRequest,
   type MentorResponse,
 } from '../../src/mentor/protocol.ts'
@@ -39,13 +41,20 @@ export async function runMentor(
   providers: Provider[],
   log: Log = () => {},
 ): Promise<{ response: MentorResponse; provider: string }> {
-  const refs = contextRefs(req.context)
-  const parse = (raw: unknown) =>
-    req.mode === 'plan'
-      ? parsePlan(raw, refs)
-      : req.mode === 'chat'
-        ? parseChat(raw, refs)
-        : parseBrief(raw, refs)
+  const parse = (raw: unknown) => {
+    switch (req.mode) {
+      case 'intake':
+        return parseIntake(raw, req.profile, req.about.today)
+      case 'roadmap':
+        return parseRoadmap(raw)
+      case 'plan':
+        return parsePlan(raw, contextRefs(req.context))
+      case 'chat':
+        return parseChat(raw, contextRefs(req.context))
+      case 'brief':
+        return parseBrief(raw, contextRefs(req.context))
+    }
+  }
 
   for (const provider of providers) {
     const messages = buildMessages(req)

@@ -78,8 +78,8 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
     production,
     providers,
     limits: {
-      perIpDay: int(env.MENTOR_IP_DAY, 30),
-      perIpMinute: int(env.MENTOR_IP_MINUTE, 6),
+      perIpDay: int(env.MENTOR_IP_DAY, 60),
+      perIpMinute: int(env.MENTOR_IP_MINUTE, 10),
       globalDay: int(env.MENTOR_GLOBAL_DAY, 800),
     },
     maxConcurrent: int(env.MENTOR_MAX_CONCURRENT, 4),

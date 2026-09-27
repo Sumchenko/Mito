@@ -1,7 +1,7 @@
 import type { Table } from 'dexie'
 import { allTables, db, SCHEMA_VERSION } from './db'
 import { DomainError } from './errors'
-import type { Project, SyncMeta, Tag, Task, TimeBlock, TimeEntry } from './types'
+import type { Goal, MentorNote, Project, SyncMeta, Tag, Task, TimeBlock, TimeEntry } from './types'
 
 export interface Backup {
   format: 'mito-backup'
@@ -13,10 +13,22 @@ export interface Backup {
     tasks: Task[]
     timeEntries: TimeEntry[]
     timeBlocks: TimeBlock[]
+    goals: Goal[]
+    mentorNotes: MentorNote[]
   }
 }
 
-const TABLE_KEYS = ['projects', 'tags', 'tasks', 'timeEntries', 'timeBlocks'] as const
+const TABLE_KEYS = [
+  'projects',
+  'tags',
+  'tasks',
+  'timeEntries',
+  'timeBlocks',
+  'goals',
+  'mentorNotes',
+] as const
+/** Tables added in later versions: backups made before them simply have none. */
+const LATER_KEYS: ReadonlySet<string> = new Set(['goals', 'mentorNotes'])
 
 /** Full snapshot, tombstones included, so a restore reproduces the exact state. */
 export async function exportBackup(): Promise<Backup> {
@@ -30,6 +42,8 @@ export async function exportBackup(): Promise<Backup> {
       tasks: await db.tasks.toArray(),
       timeEntries: await db.timeEntries.toArray(),
       timeBlocks: await db.timeBlocks.toArray(),
+      goals: await db.goals.toArray(),
+      mentorNotes: await db.mentorNotes.toArray(),
     },
   }))
 }
@@ -47,6 +61,7 @@ export function parseBackup(raw: unknown): Backup {
     throw new DomainError('backup_version', 'Backup was made by a newer version of Mito')
   }
   for (const key of TABLE_KEYS) {
+    if (raw.data[key] === undefined && LATER_KEYS.has(key)) raw.data[key] = []
     const rows = raw.data[key]
     if (!Array.isArray(rows)) throw new DomainError('backup_invalid', `Missing ${key}`)
     for (const row of rows) {
@@ -94,6 +109,8 @@ export async function restoreBackup(raw: unknown) {
     await db.tasks.bulkPut(fresh(backup.data.tasks))
     await db.timeEntries.bulkPut(fresh(backup.data.timeEntries))
     await db.timeBlocks.bulkPut(fresh(backup.data.timeBlocks))
+    await db.goals.bulkPut(fresh(backup.data.goals))
+    await db.mentorNotes.bulkPut(fresh(backup.data.mentorNotes))
   })
   return Object.fromEntries(TABLE_KEYS.map((k) => [k, backup.data[k].length])) as Record<
     (typeof TABLE_KEYS)[number],

@@ -1,7 +1,15 @@
 import { Dexie, type DBCore, type DBCoreMutateRequest, type EntityTable, type Middleware } from 'dexie'
 
 /** Tables whose records sync with the server. Their names double as the server's `collection`. */
-export const SYNCED_TABLES = ['projects', 'tags', 'tasks', 'timeEntries', 'timeBlocks'] as const
+export const SYNCED_TABLES = [
+  'projects',
+  'tags',
+  'tasks',
+  'timeEntries',
+  'timeBlocks',
+  'goals',
+  'mentorNotes',
+] as const
 export type SyncedTable = (typeof SYNCED_TABLES)[number]
 const synced = new Set<string>(SYNCED_TABLES)
 

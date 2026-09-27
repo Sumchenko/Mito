@@ -97,6 +97,26 @@ describe('push and pull', () => {
   })
 })
 
+describe('new collections', () => {
+  it('pull everything once more after an update that added collections', async () => {
+    const db = device()
+    const remote = fakeRemote()
+    await remote.push([{ id: 'a', collection: 'tasks', doc: task('a', 'Seen', 20), updatedAt: 20, deletedAt: null }])
+    await pull(db, remote)
+    // An older version skipped this row it did not know but moved its cursor past it.
+    await remote.push([{ id: 'g', collection: 'goals', doc: { id: 'g', createdAt: 1, updatedAt: 30 }, updatedAt: 30, deletedAt: null }])
+    await db.syncState.bulkPut([
+      { key: 'cursor', value: 2 },
+      { key: 'collections', value: 'projects,tags,tasks,timeEntries,timeBlocks' },
+    ])
+    await db.goals.clear()
+
+    await pull(db, remote)
+    expect(await db.goals.get('g')).toBeDefined()
+    expect(await pull(db, remote)).toBe(0) // once only
+  })
+})
+
 describe('two devices', () => {
   it('converge, with the later edit winning and deletions propagating', async () => {
     const remote = fakeRemote()

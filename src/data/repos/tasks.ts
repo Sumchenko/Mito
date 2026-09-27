@@ -16,6 +16,9 @@ export interface TaskInput {
   estimateMin?: number
   plannedDate?: LocalDate
   dueDate?: LocalDate
+  /** A task of a learning plan. */
+  goalId?: Id
+  stageId?: string
 }
 
 /** In a patch, `null` clears an optional field; `undefined` leaves it untouched. */
@@ -37,11 +40,12 @@ function checkEstimate(value: number | null | undefined) {
 
 // Called inside transactions: Dexie promise chains, not async functions (see common.ts).
 
-function checkRefs(input: { projectId?: Id | null; tagIds?: Id[] }) {
+function checkRefs(input: { projectId?: Id | null; tagIds?: Id[]; goalId?: Id | null }) {
   const checks: PromiseLike<unknown>[] = (input.tagIds ?? []).map((tagId) =>
     requireAlive(db.tags, tagId, 'Tag'),
   )
   checks.push(input.projectId != null ? requireAlive(db.projects, input.projectId, 'Project') : done())
+  checks.push(input.goalId != null ? requireAlive(db.goals, input.goalId, 'Goal') : done())
   return Dexie.Promise.all(checks)
 }
 
@@ -73,7 +77,7 @@ export const tasksRepo = {
   get: (id: Id) => db.tasks.get(id).then((t) => (alive(t) ? t : undefined)),
 
   async create(input: TaskInput): Promise<Task> {
-    return db.transaction('rw', db.tasks, db.projects, db.tags, async () => {
+    return db.transaction('rw', db.tasks, db.projects, db.tags, db.goals, async () => {
       checkOptionalDate(input.plannedDate, 'plannedDate')
       checkOptionalDate(input.dueDate, 'dueDate')
       checkEstimate(input.estimateMin)
@@ -82,10 +86,11 @@ export const tasksRepo = {
       }
       await checkRefs(input)
 
-      let projectId = input.projectId
+      let { projectId, goalId, stageId } = input
       if (input.parentId) {
         const parent = await checkParent(input.parentId)
-        projectId = parent.projectId // subtasks always live in their parent's project
+        // Subtasks always live in their parent's project, and belong to its goal and stage.
+        ;({ projectId, goalId, stageId } = parent)
       }
 
       const last = await db.tasks.orderBy('order').last()
@@ -102,6 +107,8 @@ export const tasksRepo = {
         plannedDate: input.plannedDate,
         dueDate: input.dueDate,
         order: (last?.order ?? 0) + ORDER_STEP,
+        goalId,
+        stageId,
       }
       await db.tasks.add(definedOnly(task) as Task)
       return task
@@ -109,7 +116,7 @@ export const tasksRepo = {
   },
 
   async update(id: Id, patch: TaskPatch) {
-    await db.transaction('rw', db.tasks, db.projects, db.tags, async () => {
+    await db.transaction('rw', db.tasks, db.projects, db.tags, db.goals, async () => {
       const task = await requireAlive(db.tasks, id, 'Task')
       checkOptionalDate(patch.plannedDate, 'plannedDate')
       checkOptionalDate(patch.dueDate, 'dueDate')
@@ -125,7 +132,7 @@ export const tasksRepo = {
       if (patch.tagIds !== undefined) changes.tagIds = [...new Set(patch.tagIds)]
       if (patch.priority !== undefined) changes.priority = patch.priority
       if (patch.order !== undefined) changes.order = patch.order
-      for (const key of ['notes', 'estimateMin', 'plannedDate', 'dueDate'] as const) {
+      for (const key of ['notes', 'estimateMin', 'plannedDate', 'dueDate', 'goalId', 'stageId'] as const) {
         if (patch[key] !== undefined) Object.assign(changes, { [key]: patch[key] ?? undefined })
       }
 

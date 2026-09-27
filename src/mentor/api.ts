@@ -2,17 +2,23 @@ import {
   contextRefs,
   parseBrief,
   parseChat,
+  parseIntake,
   parsePlan,
+  parseRoadmap,
   readableRefs,
   type BriefKind,
   type BriefResponse,
   type ChatMessage,
   type ChatResponse,
+  type IntakeAbout,
+  type IntakeProfile,
+  type IntakeResponse,
   type MentorContext,
   type MentorErrorCode,
   type MentorLang,
   type MentorRequest,
   type PlanResponse,
+  type RoadmapResponse,
 } from './protocol'
 
 /** A failed mentor call, with what the user should be told. */
@@ -87,4 +93,33 @@ export async function requestBrief(
   const out = parseBrief(await call({ mode: 'brief', lang, context, kind }), contextRefs(context))
   if (!out) throw new MentorApiError('failed')
   return { ...out, text: readableRefs(out.text, context, lang) }
+}
+
+/** One turn of getting to know the user's learning goal. */
+export async function requestIntake(
+  lang: MentorLang,
+  about: IntakeAbout,
+  profile: IntakeProfile,
+  messages: ChatMessage[],
+): Promise<IntakeResponse> {
+  const out = parseIntake(
+    await call({ mode: 'intake', lang, about, profile, messages }),
+    profile,
+    about.today,
+  )
+  if (!out) throw new MentorApiError('failed')
+  return out
+}
+
+export async function requestRoadmap(
+  lang: MentorLang,
+  context: MentorContext,
+  profile: IntakeProfile,
+  note?: string,
+): Promise<RoadmapResponse> {
+  const out = parseRoadmap(
+    await call({ mode: 'roadmap', lang, context, profile, ...(note ? { note } : {}) }),
+  )
+  if (!out) throw new MentorApiError('failed')
+  return out
 }
