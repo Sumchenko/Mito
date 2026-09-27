@@ -633,3 +633,42 @@
   padding-left: 8px;
   text-align: left;
 }
+
+/* ================= Touch: a block picked up by a long press ================= */
+/* Lifted, ringed in its own color, with round handles large enough for a finger. */
+.block[data-selected='true'] {
+  z-index: 2;
+  overflow: visible;
+  box-shadow:
+    0 0 0 2px var(--block),
+    var(--shadow-flyout);
+}
+.block[data-selected='true'] .edge-top,
+.block[data-selected='true'] .edge-bottom {
+  height: 24px;
+}
+.block[data-selected='true'] .edge-top {
+  top: -12px;
+}
+.block[data-selected='true'] .edge-bottom {
+  bottom: -12px;
+}
+.block[data-selected='true'] .edge-top::after,
+.block[data-selected='true'] .edge-bottom::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--block);
+  background: var(--bg-card);
+  transform: translateY(-50%);
+}
+/* Handles sit on opposite corners, so a short block still has room for both. */
+.block[data-selected='true'] .edge-top::after {
+  left: 12px;
+}
+.block[data-selected='true'] .edge-bottom::after {
+  right: 12px;
+}

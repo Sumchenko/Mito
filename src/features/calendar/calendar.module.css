@@ -301,3 +301,90 @@
   background: var(--accent-subtle);
   color: var(--accent-text);
 }
+
+/* ================= Compact screens ================= */
+.list-button {
+  position: relative;
+}
+.badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+/* On an icon-only button the count sits on the corner. */
+.badge-corner {
+  position: absolute;
+  top: 0;
+  right: -2px;
+  margin: 0;
+}
+
+/* The zoom stops get a row of their own on phones, full width and thumb-sized. */
+.stops-row > [role='radiogroup'] {
+  display: flex;
+  width: 100%;
+}
+.stops-row [role='radio'] {
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  padding: 0 4px;
+}
+
+/* Placing a picked task: says what the next tap does, and how to back out. */
+.placing {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 6px 6px 6px var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--accent-subtle);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  color: var(--accent-text);
+  font-size: var(--text-caption);
+  font-weight: 600;
+}
+
+/* The unscheduled list inside a sheet or flyout: no card of its own, rows are tap targets. */
+.side-sheet .side-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.side-pick {
+  width: 100%;
+  min-height: 48px;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .page {
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3) var(--space-3);
+  }
+  .toolbar {
+    gap: var(--space-2);
+  }
+  .nav {
+    flex: 1;
+  }
+  .nav .title {
+    flex: 1;
+    margin: 0;
+    text-align: center;
+    font-size: 16px;
+  }
+}

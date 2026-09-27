@@ -15,6 +15,7 @@ import {
   toLocalDate,
   useNow,
   type LocalDate,
+  type Task,
   type TimeBlock,
 } from '@/data'
 import { BlockPopover, DraftPopover, EntryPopover } from '../BlockPopovers'
@@ -37,7 +38,9 @@ import { useZoomCamera } from './useZoomCamera'
 import { useZoomData } from './useZoomData'
 import s from './zoom.module.css'
 
+/** Hour labels column; narrower on phones, where every pixel of the day matters. */
 const GUTTER = 56
+const GUTTER_NARROW = 40
 const HEADER = 48
 
 export interface ZoomApi {
@@ -59,6 +62,9 @@ interface ZoomCalendarProps {
   initial: { day: LocalDate; stop: Stop }
   /** Fact shown as a full column beside the plan instead of a thin strip. */
   factOpen?: boolean
+  /** A task waiting to be placed: the next tap on the calendar gives it that time (or day). */
+  placing?: Task | null
+  onPlaced?: () => void
   /** Receives the controls once. */
   onApi?: (api: ZoomApi) => void
   /** Called when the visible range or level changes — not on every animation frame. */
@@ -76,6 +82,8 @@ type Drag =
       moved: boolean
       /** Pressed on a fact entry: a click opens it, a drag still pans. */
       entry?: { id: string; rect: DOMRect }
+      /** Touch: what the finger went down on — a tap opens it, a long press picks it up. */
+      hit?: TouchHit
     }
   | { kind: 'create'; anchor: number; slot: Slot; moved: boolean }
   | {
@@ -86,9 +94,18 @@ type Drag =
       x0: number
       y0: number
       moved: boolean
+      /** Picked up by a long press: releasing without moving keeps it selected. */
+      picked?: boolean
     }
 
+type BlockHit = { block: TimeBlock; slot: Slot; edge?: 'start' | 'end' }
+type TouchHit = ({ kind: 'block' } & BlockHit) | { kind: 'empty' }
+
 const DRAG_THRESHOLD = 4
+/** A finger wobbles: it has to travel further than a mouse before a press counts as a drag. */
+const TOUCH_SLOP = 10
+/** Hold this long to pick up a block or start drawing a new one (the platform norm). */
+const LONG_PRESS = 380
 /** Timeline opacity above which the surface edits instead of panning. */
 const EDIT_THRESHOLD = 0.85
 /** Holding a dragged task over a day this long zooms in so it can get a time. */
@@ -111,13 +128,14 @@ const nearestStop = (z: number) =>
  * The semantic zoom surface. It re-renders every animation frame, so it talks to the page
  * sparingly: a stable API object and a notification when the nearest stop changes.
  */
-export function ZoomCalendar({ initial, factOpen = false, onApi, onView }: ZoomCalendarProps) {
+export function ZoomCalendar({ initial, factOpen = false, placing, onPlaced, onApi, onView }: ZoomCalendarProps) {
   const { t, i18n } = useTranslation()
   const root = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ width: 0, height: 0 })
+  const gutter = size.width > 0 && size.width < 520 ? GUTTER_NARROW : GUTTER
   const vp = useMemo(
-    () => ({ width: Math.max(1, size.width - GUTTER), height: Math.max(1, size.height - HEADER) }),
-    [size],
+    () => ({ width: Math.max(1, size.width - gutter), height: Math.max(1, size.height - HEADER) }),
+    [size, gutter],
   )
   const now = useNow(30_000)
   const today = toLocalDate(now)
@@ -179,10 +197,18 @@ export function ZoomCalendar({ initial, factOpen = false, onApi, onView }: ZoomC
   /** Where a dragged task would land: a slot at timeline zoom, a whole day when zoomed out. */
   const [drop, setDrop] = useState<{ day: LocalDate; slot?: Slot; x: number; y: number } | null>(null)
   const spring = useRef<{ day: LocalDate; timer: number } | null>(null)
+  /** Touch: the block picked up by a long press, shown with resize handles. */
+  const [selected, setSelected] = useState<string | null>(null)
+  const hold = useRef<number | undefined>(undefined)
+  // The long-press timer fires outside render; it checks the latest drag through this ref.
+  const dragRef = useRef(drag)
+  useEffect(() => {
+    dragRef.current = drag
+  })
 
   const local = (e: { clientX: number; clientY: number }) => {
     const r = root.current!.getBoundingClientRect()
-    return { x: e.clientX - r.left - GUTTER, y: e.clientY - r.top - HEADER }
+    return { x: e.clientX - r.left - gutter, y: e.clientY - r.top - HEADER }
   }
   const editing = () => smoothstep(8, 14, scaleAt(camRef.current.z, vp).hourPx) > EDIT_THRESHOLD
 
@@ -200,7 +226,7 @@ export function ZoomCalendar({ initial, factOpen = false, onApi, onView }: ZoomC
     const sc = scaleAt(camRef.current.z, vp)
     const p = screenOf(cell.col, cell.row, camRef.current, vp)
     return new DOMRect(
-      r.left + GUTTER + p.x,
+      r.left + gutter + p.x,
       r.top + HEADER + p.y + (slot.startMin / 1440) * sc.rowH,
       sc.colW,
       ((slot.endMin - slot.startMin) / 1440) * sc.rowH,
@@ -214,7 +240,8 @@ export function ZoomCalendar({ initial, factOpen = false, onApi, onView }: ZoomC
       e.preventDefault()
       setHoverEntry(null)
       const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1
-      const p = local(e)
+      const r = el.getBoundingClientRect()
+      const p = { x: e.clientX - r.left - gutter, y: e.clientY - r.top - HEADER }
       if (e.ctrlKey || e.metaKey) {
         // Trackpad pinches arrive as ctrl+wheel with small deltas; mouse wheels with ±100.
         // Spreading the fingers (or wheel up) gives deltaY < 0 and must zoom in, i.e. lower z.
@@ -227,7 +254,7 @@ export function ZoomCalendar({ initial, factOpen = false, onApi, onView }: ZoomC
     }
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => el.removeEventListener('wheel', onWheel)
-  }, [zoomBy, panBy])
+  }, [zoomBy, panBy, gutter])
 
   const onPointerDown = (e: ReactPointerEvent) => {
     const target = e.target as Element
@@ -237,59 +264,117 @@ export function ZoomCalendar({ initial, factOpen = false, onApi, onView }: ZoomC
     root.current!.setPointerCapture(e.pointerId)
     const p = local(e)
 
+    // Placing a task: a press only pans or taps, never edits, until the task has its time.
+    if (placing && e.pointerType !== 'touch') {
+      setDrag({ kind: 'pan', x: p.x, y: p.y, x0: p.x, y0: p.y, moved: false })
+      return
+    }
+
+    const factEl = editing() ? target.closest<HTMLElement>('[data-entry-id]') : null
+    const entry = factEl ? { id: factEl.dataset.entryId!, rect: factEl.getBoundingClientRect() } : undefined
+
     if (e.pointerType === 'touch') {
       const pts = pinch.current?.pts ?? new Map()
       pts.set(e.pointerId, p)
       if (pts.size === 2) {
         const [a, b] = [...pts.values()] as [{ x: number; y: number }, { x: number; y: number }]
         pinch.current = { pts, d0: Math.hypot(a.x - b.x, a.y - b.y), z0: camRef.current.z }
+        cancelHold()
         setDrag(null)
         return
       }
       pinch.current = { pts, d0: 0, z0: camRef.current.z }
-      // One finger always pans; a tap (no movement) acts like a click.
-      setDrag({ kind: 'pan', x: p.x, y: p.y, x0: p.x, y0: p.y, moved: false })
+      // One finger scrolls, even over blocks. A tap opens what it lands on; a long press picks a
+      // block up (or starts drawing a new one on empty time). A picked-up block follows the
+      // finger straight away: its body moves it, its handles resize it.
+      const b = editing() && !entry && !placing ? blockAt(target) : undefined
+      if (b && b.block.id === selected) {
+        startBlockDrag(b, p)
+        return
+      }
+      const hit: TouchHit | undefined =
+        !editing() || entry || placing ? undefined : b ? { kind: 'block', ...b } : { kind: 'empty' }
+      setDrag({ kind: 'pan', x: p.x, y: p.y, x0: p.x, y0: p.y, moved: false, entry, hit })
+      if (hit) startHold(hit, p)
       return
     }
 
-    if (!editing()) {
-      setDrag({ kind: 'pan', x: p.x, y: p.y, x0: p.x, y0: p.y, moved: false })
-      return
-    }
-    const factEl = target.closest<HTMLElement>('[data-entry-id]')
-    if (factEl) {
-      const entry = { id: factEl.dataset.entryId!, rect: factEl.getBoundingClientRect() }
+    if (!editing() || entry) {
       setDrag({ kind: 'pan', x: p.x, y: p.y, x0: p.x, y0: p.y, moved: false, entry })
       return
     }
+    const b = blockAt(target)
+    if (b) startBlockDrag(b, p)
+    else startCreate(p)
+  }
+
+  /** The block under a pointer, with the edge when a resize handle was hit. */
+  const blockAt = (target: Element): BlockHit | undefined => {
     const el = target.closest<HTMLElement>('[data-block-id]')
-    const block = el ? data.blocks.find((b) => b.id === el.dataset.blockId) : undefined
+    const block = el ? data.blocks.find((x) => x.id === el.dataset.blockId) : undefined
+    if (!el || !block) return undefined
+    const edge = target.closest<HTMLElement>('[data-edge]')?.dataset.edge
+    return {
+      block,
+      slot: { day: el.dataset.day as LocalDate, startMin: Number(el.dataset.start), endMin: Number(el.dataset.end) },
+      edge: edge === 'start' || edge === 'end' ? edge : undefined,
+    }
+  }
+
+  const startBlockDrag = (b: BlockHit, p: { x: number; y: number }, picked = false) => {
     const at = pointAt(p.x, p.y)
-    if (el && block) {
-      const slot = {
-        day: el.dataset.day as LocalDate,
-        startMin: Number(el.dataset.start),
-        endMin: Number(el.dataset.end),
-      }
-      const edge = target.closest<HTMLElement>('[data-edge]')?.dataset.edge
-      setDrag({
-        kind: edge === 'start' ? 'resize-start' : edge === 'end' ? 'resize-end' : 'move',
-        block,
-        slot,
-        grab: at.min - slot.startMin,
-        x0: p.x,
-        y0: p.y,
-        moved: false,
+    setDrag({
+      kind: b.edge === 'start' ? 'resize-start' : b.edge === 'end' ? 'resize-end' : 'move',
+      block: b.block,
+      slot: b.slot,
+      grab: at.min - b.slot.startMin,
+      x0: p.x,
+      y0: p.y,
+      moved: false,
+      picked,
+    })
+  }
+
+  const startCreate = (p: { x: number; y: number }) => {
+    const at = pointAt(p.x, p.y)
+    const anchor = Math.floor(at.min / SNAP_MIN) * SNAP_MIN
+    setDrag({ kind: 'create', anchor, slot: { day: at.day, startMin: anchor, endMin: anchor + SNAP_MIN }, moved: false })
+  }
+
+  const cancelHold = () => window.clearTimeout(hold.current)
+
+  /** Gives a picked task the tapped time — or, zoomed out, the tapped day. */
+  const place = (task: Task, p: { x: number; y: number }) => {
+    const at = pointAt(p.x, p.y)
+    if (editing()) {
+      const length = Math.min(240, Math.max(SNAP_MIN, task.estimateMin ?? 60))
+      const startMin = Math.min(1440 - length, Math.max(0, snap(at.min)))
+      void timeBlocksRepo.create({
+        taskId: task.id,
+        start: atMinutes(at.day, startMin),
+        end: atMinutes(at.day, startMin + length),
       })
     } else {
-      const anchor = Math.floor(at.min / SNAP_MIN) * SNAP_MIN
-      setDrag({
-        kind: 'create',
-        anchor,
-        slot: { day: at.day, startMin: anchor, endMin: anchor + SNAP_MIN },
-        moved: false,
-      })
+      void tasksRepo.update(task.id, { plannedDate: at.day })
     }
+    navigator.vibrate?.(12)
+    onPlaced?.()
+  }
+
+  const startHold = (hit: TouchHit, p: { x: number; y: number }) => {
+    cancelHold()
+    hold.current = window.setTimeout(() => {
+      const cur = dragRef.current
+      if (cur?.kind !== 'pan' || cur.moved) return
+      navigator.vibrate?.(12)
+      if (hit.kind === 'block') {
+        setSelected(hit.block.id)
+        startBlockDrag({ ...hit, edge: undefined }, p, true)
+      } else {
+        setSelected(null)
+        startCreate(p)
+      }
+    }, LONG_PRESS)
   }
 
   const onPointerMove = (e: ReactPointerEvent) => {
@@ -314,7 +399,9 @@ export function ZoomCalendar({ initial, factOpen = false, onApi, onView }: ZoomC
     }
     if (drag.kind === 'pan') {
       panBy(drag.x - p.x, drag.y - p.y)
-      const moved = drag.moved || Math.hypot(p.x - drag.x0, p.y - drag.y0) > DRAG_THRESHOLD
+      const slop = e.pointerType === 'touch' ? TOUCH_SLOP : DRAG_THRESHOLD
+      const moved = drag.moved || Math.hypot(p.x - drag.x0, p.y - drag.y0) > slop
+      if (moved) cancelHold()
       setDrag({ ...drag, x: p.x, y: p.y, moved })
       return
     }
@@ -350,6 +437,7 @@ export function ZoomCalendar({ initial, factOpen = false, onApi, onView }: ZoomC
   const onPointerUp = (e: ReactPointerEvent) => {
     pinch.current?.pts.delete(e.pointerId)
     if (pinch.current && pinch.current.pts.size < 2) pinch.current.d0 = 0
+    cancelHold()
     const d = drag
     setDrag(null)
     if (!d) return
@@ -357,8 +445,22 @@ export function ZoomCalendar({ initial, factOpen = false, onApi, onView }: ZoomC
 
     if (d.kind === 'pan') {
       if (d.moved) return
+      if (placing) {
+        place(placing, p)
+        return
+      }
       if (d.entry) {
         setOpenedEntry(d.entry)
+        return
+      }
+      if (d.hit?.kind === 'block') {
+        setSelected(null)
+        setOpened({ id: d.hit.block.id, rect: slotRect(d.hit.slot) })
+        return
+      }
+      if (selected) {
+        // A tap away puts the picked-up block down.
+        setSelected(null)
         return
       }
       const at = pointAt(p.x, p.y)
@@ -382,7 +484,8 @@ export function ZoomCalendar({ initial, factOpen = false, onApi, onView }: ZoomC
       return
     }
     if (!d.moved) {
-      setOpened({ id: d.block.id, rect: slotRect(d.slot) })
+      // Just picked up by a long press: stays selected, handles showing, for the next gesture.
+      if (!d.picked) setOpened({ id: d.block.id, rect: slotRect(d.slot) })
       return
     }
     void timeBlocksRepo.update(d.block.id, {
@@ -630,14 +733,17 @@ export function ZoomCalendar({ initial, factOpen = false, onApi, onView }: ZoomC
           '--heat-o': heatO,
           '--heat-num-o': smoothstep(19, 28, scale.rowH) * smoothstep(40, 70, scale.colW),
           '--fact-w': `${Math.max(3, Math.min(14, scale.colW * 0.05))}px`,
-          '--gutter': `${GUTTER}px`,
+          '--gutter': `${gutter}px`,
           '--header': `${HEADER}px`,
         } as CSSProperties
       }
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
-      onPointerCancel={() => setDrag(null)}
+      onPointerCancel={() => {
+        cancelHold()
+        setDrag(null)
+      }}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onPointerLeave={() => setHoverEntry(null)}
@@ -672,6 +778,7 @@ export function ZoomCalendar({ initial, factOpen = false, onApi, onView }: ZoomC
                 duration={duration}
                 layers={layers}
                 hiddenBlockId={movingId}
+                selectedBlockId={selected ?? undefined}
               />
               {day === today && (
                 <div className={s.nowLine} style={{ top: `${(nowMin / 1440) * 100}%` }} />
@@ -793,7 +900,7 @@ export function ZoomCalendar({ initial, factOpen = false, onApi, onView }: ZoomC
         <div
           className={s.dropHint}
           style={{
-            left: drop.x + GUTTER,
+            left: drop.x + gutter,
             top: drop.y + HEADER,
             // Keep the hint inside the card: flip it to the other side of the cursor near edges.
             transform: `translate(${drop.x > vp.width - 280 ? 'calc(-100% - 16px)' : '16px'}, ${

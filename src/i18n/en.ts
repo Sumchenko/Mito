@@ -215,6 +215,8 @@ export const en: Messages = {
     unscheduled: 'Unscheduled',
     unscheduledHint: 'Drag a task into the calendar to give it time.',
     unscheduledEmpty: 'Everything for these days is scheduled.',
+    unscheduledTapHint: 'Pick a task, then tap a time on the calendar.',
+    placing: 'Tap a time — or a day — for “{{title}}”',
     noTask: 'No task',
     planFact: 'Plan & fact',
     planFactHint: 'Show tracked time as a column beside the plan (F)',

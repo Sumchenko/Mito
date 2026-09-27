@@ -7,3 +7,37 @@
   border: 1px solid var(--stroke-card);
   box-shadow: var(--shadow-flyout);
 }
+
+/* Phones: a bottom sheet over a dimmed page. */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: rgb(0 0 0 / 0.3);
+}
+.sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 91;
+  max-height: 85dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-5) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom));
+  border-radius: 16px 16px 0 0;
+  background: var(--bg-card);
+  box-shadow: 0 -8px 32px rgb(0 0 0 / 0.18);
+}
+/* The grabber: says "this is a sheet" at a glance. */
+.sheet::before {
+  content: '';
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  width: 36px;
+  height: 4px;
+  margin-left: -18px;
+  border-radius: 2px;
+  background: var(--stroke-control);
+}

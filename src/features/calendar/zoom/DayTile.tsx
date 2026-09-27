@@ -31,6 +31,8 @@ interface DayTileProps {
   layers: { timeline: boolean; summary: boolean; heat: boolean }
   /** A block being dragged elsewhere is hidden at its original place. */
   hiddenBlockId?: string
+  /** Touch: the block picked up by a long press — shown with large resize handles. */
+  selectedBlockId?: string
 }
 
 /**
@@ -47,6 +49,7 @@ export const DayTile = memo(function DayTile({
   duration,
   layers,
   hiddenBlockId,
+  selectedBlockId,
 }: DayTileProps) {
   const dayNum = Number(day.slice(8))
   const heat = Math.min(1, (stats?.trackedMin ?? 0) / HEAT_FULL)
@@ -64,6 +67,7 @@ export const DayTile = memo(function DayTile({
                   className={s.block}
                   data-kind={block.kind}
                   data-done={done}
+                  data-selected={block.id === selectedBlockId}
                   data-block-id={block.id}
                   data-day={day}
                   data-start={startMin}
