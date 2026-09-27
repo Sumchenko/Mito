@@ -245,3 +245,35 @@
     animation: none;
   }
 }
+
+/* A finger scrubs sideways across a chart; vertical swipes still scroll the page. */
+.scrubbable {
+  touch-action: pan-y;
+}
+
+/* The year map keeps readable cells; where the year does not fit it scrolls sideways. */
+.year-scroll {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+}
+.year-scroll .year-map {
+  min-width: calc(var(--weeks) * 13px + 28px);
+}
+/* On touch, the tapped day's details sit under the map instead of a floating tip. */
+.year-caption {
+  margin-top: var(--space-2);
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--text-primary) 4%, transparent);
+  font-size: 12px;
+}
+/* Weeks keep square cells: they never stretch to the height of the weekday labels, and the
+   labels are kept small enough to fit beside even the narrowest cells. */
+.year-week {
+  align-self: start;
+}
+.year-days span {
+  font-size: 9px;
+  line-height: 10px;
+}

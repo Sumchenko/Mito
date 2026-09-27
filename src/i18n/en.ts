@@ -269,6 +269,7 @@ export const en: Messages = {
       average: 'avg {{value}}',
       hint: 'Click a bar to open that day in the calendar.',
       hintLong: 'Click a bar to open that time in the calendar.',
+      hintTouch: 'Slide a finger along the chart to see the details.',
       empty: 'Nothing tracked in this period. Start the timer and your time will show up here.',
       weekOf: 'Week of {{date}}',
     },

@@ -521,3 +521,52 @@
   margin: 0;
   font-weight: 600;
 }
+
+/* ================= Phones ================= */
+@media (max-width: 640px) {
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+  }
+  .title {
+    font-size: 22px;
+    line-height: 28px;
+  }
+  /* "‹ September 2026 ›" on one row, the period kinds on a full-width row below. */
+  .period-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-2);
+  }
+  .period-nav > h2 {
+    order: 1;
+    flex: 1;
+    margin: 0;
+    text-align: center;
+    font-size: 16px;
+  }
+  .period-nav > button:nth-child(2) {
+    order: 2;
+  }
+  .period-nav > button:nth-child(n + 4) {
+    order: 3;
+  }
+  .period-kinds > [role='radiogroup'] {
+    display: flex;
+    width: 100%;
+  }
+  .period-kinds [role='radio'] {
+    flex: 1;
+    min-width: 0;
+    padding: 0 4px;
+  }
+  /* An odd last tile takes the whole row instead of leaving a hole. */
+  .tiles > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+  .card {
+    padding: var(--space-4);
+  }
+}

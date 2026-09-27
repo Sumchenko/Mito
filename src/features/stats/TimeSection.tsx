@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
+import { useMediaQuery } from '@/lib/useMediaQuery'
 import { BarChart, type BarDatum } from '@/ui/charts/BarChart'
 import { calendarLink, type Bucket } from './buckets'
 import type { StatsFormat } from './format'
@@ -10,6 +11,8 @@ import s from './stats.module.css'
 export function TimeSection({ data, buckets, fmt }: { data: StatsData; buckets: Bucket[]; fmt: StatsFormat }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  // Touch screens inspect bars by sliding a finger; clicking through to the calendar is for mice.
+  const touch = useMediaQuery('(hover: none)')
   const { report: r, today } = data
   const order = r.projects.map((p) => p.projectId)
   const started = buckets.filter((b) => b.key <= today)
@@ -45,7 +48,7 @@ export function TimeSection({ data, buckets, fmt }: { data: StatsData; buckets: 
     <section className={s.card}>
       <header className={s.cardHead}>
         <h3 className={s.cardTitle}>{t('stats.time.title')}</h3>
-        <span className={s.cardHint}>{kind === 'day' ? t('stats.time.hint') : t('stats.time.hintLong')}</span>
+        <span className={s.cardHint}>{touch ? t('stats.time.hintTouch') : kind === 'day' ? t('stats.time.hint') : t('stats.time.hintLong')}</span>
       </header>
       {r.trackedMs === 0 ? (
         <p className={s.empty}>{t('stats.time.empty')}</p>

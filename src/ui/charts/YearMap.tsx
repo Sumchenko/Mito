@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type ReactNode } from 'react'
+import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { intensity } from './scale'
 import s from './charts.module.css'
 
@@ -27,65 +27,90 @@ interface YearMapProps {
 }
 
 /** Days as small squares, one column per week — a year at a glance. */
-export function YearMap({ columns, rowLabels, tint = 'var(--accent)', ariaLabel, tip, onSelect }: YearMapProps) {
+export function YearMap({
+  columns,
+  rowLabels,
+  tint = 'var(--accent)',
+  ariaLabel,
+  tip,
+  onSelect,
+}: YearMapProps) {
   const [hover, setHover] = useState<{ cell: YearMapCell; x: number; y: number } | null>(null)
+  /** A finger inspects days (details under the map); only a mouse click opens one. */
+  const [touch, setTouch] = useState(false)
+  const scroller = useRef<HTMLDivElement>(null)
   const max = Math.max(0, ...columns.flatMap((c) => c.cells.map((x) => x?.value ?? 0)))
 
+  // Too narrow for the whole year (phones), the map scrolls sideways: start at the latest weeks.
+  useLayoutEffect(() => {
+    const el = scroller.current
+    if (el) el.scrollLeft = el.scrollWidth
+  }, [columns.length])
+
   return (
-    <div
-      className={s.yearMap}
-      role="img"
-      aria-label={ariaLabel}
-      style={{ '--weeks': columns.length, '--heat-tint': tint } as CSSProperties}
-      onPointerLeave={() => setHover(null)}
-    >
-      <span />
-      {columns.map((col, i) => (
-        <span key={i} className={s.yearMonth}>
-          {col.label}
-        </span>
-      ))}
-      <div className={s.yearDays}>
-        {rowLabels.map((label, i) => (
-          <span key={i}>{label}</span>
-        ))}
-      </div>
-      {columns.map((col, i) => (
-        <div key={i} className={s.yearWeek}>
-          {col.cells.map((cell, j) =>
-            cell ? (
-              <span
-                key={j}
-                className={s.yearCell}
-                data-today={cell.today}
-                data-future={cell.future}
-                data-clickable={!!onSelect && !cell.future}
-                style={{ '--v': cell.future ? 0 : intensity(cell.value, max) } as CSSProperties}
-                onPointerEnter={(e) => {
-                  if (cell.future) return
-                  const el = e.currentTarget
-                  const parent = el.offsetParent as HTMLElement | null
-                  const box = el.getBoundingClientRect()
-                  const origin = parent?.getBoundingClientRect()
-                  setHover({
-                    cell,
-                    x: box.left - (origin?.left ?? 0) + box.width / 2,
-                    y: box.top - (origin?.top ?? 0),
-                  })
-                }}
-                onClick={() => !cell.future && onSelect?.(cell)}
-              />
-            ) : (
-              <span key={j} />
-            ),
+    <>
+      <div
+        ref={scroller}
+        className={s.yearScroll}
+        onPointerDown={(e) => setTouch(e.pointerType === 'touch')}
+      >
+        <div
+          className={s.yearMap}
+          role="img"
+          aria-label={ariaLabel}
+          style={{ '--weeks': columns.length, '--heat-tint': tint } as CSSProperties}
+          onPointerLeave={(e) => e.pointerType === 'mouse' && setHover(null)}
+        >
+          <span />
+          {columns.map((col, i) => (
+            <span key={i} className={s.yearMonth}>
+              {col.label}
+            </span>
+          ))}
+          <div className={s.yearDays}>
+            {rowLabels.map((label, i) => (
+              <span key={i}>{label}</span>
+            ))}
+          </div>
+          {columns.map((col, i) => (
+            <div key={i} className={s.yearWeek}>
+              {col.cells.map((cell, j) =>
+                cell ? (
+                  <span
+                    key={j}
+                    className={s.yearCell}
+                    data-today={cell.today}
+                    data-future={cell.future}
+                    data-clickable={!!onSelect && !cell.future}
+                    style={{ '--v': cell.future ? 0 : intensity(cell.value, max) } as CSSProperties}
+                    onPointerEnter={(e) => {
+                      if (cell.future) return
+                      const el = e.currentTarget
+                      const parent = el.offsetParent as HTMLElement | null
+                      const box = el.getBoundingClientRect()
+                      const origin = parent?.getBoundingClientRect()
+                      setHover({
+                        cell,
+                        x: box.left - (origin?.left ?? 0) + box.width / 2,
+                        y: box.top - (origin?.top ?? 0),
+                      })
+                    }}
+                    onClick={() => !cell.future && !touch && onSelect?.(cell)}
+                  />
+                ) : (
+                  <span key={j} />
+                ),
+              )}
+            </div>
+          ))}
+          {hover && !touch && (
+            <div className={s.tip} style={{ left: hover.x, top: hover.y - 6 }}>
+              {tip(hover.cell)}
+            </div>
           )}
         </div>
-      ))}
-      {hover && (
-        <div className={s.tip} style={{ left: hover.x, top: hover.y - 6 }}>
-          {tip(hover.cell)}
-        </div>
-      )}
-    </div>
+      </div>
+      {touch && hover && <div className={s.yearCaption}>{tip(hover.cell)}</div>}
+    </>
   )
 }

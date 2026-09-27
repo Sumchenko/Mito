@@ -89,7 +89,7 @@ export function PeriodBar({ period, today, onChange, fmt }: PeriodBarProps) {
           </Button>
         )}
       </div>
-      <div ref={anchorRef}>
+      <div ref={anchorRef} className={s.periodKinds}>
         <Segmented<PeriodKind>
           aria-label={t('stats.title')}
           value={period.kind}

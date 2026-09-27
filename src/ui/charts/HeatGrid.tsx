@@ -14,8 +14,17 @@ interface HeatGridProps {
 }
 
 /** A matrix of cells shaded by value — e.g. weekday × hour of day. */
-export function HeatGrid({ values, rowLabels, colLabels, tint = 'var(--accent)', ariaLabel, tip }: HeatGridProps) {
-  const [hover, setHover] = useState<{ row: number; col: number; x: number; y: number } | null>(null)
+export function HeatGrid({
+  values,
+  rowLabels,
+  colLabels,
+  tint = 'var(--accent)',
+  ariaLabel,
+  tip,
+}: HeatGridProps) {
+  const [hover, setHover] = useState<{ row: number; col: number; x: number; y: number } | null>(
+    null,
+  )
   const max = Math.max(0, ...values.flat())
   const cols = colLabels.length
 
@@ -25,7 +34,8 @@ export function HeatGrid({ values, rowLabels, colLabels, tint = 'var(--accent)',
       role="img"
       aria-label={ariaLabel}
       style={{ '--cols': cols, '--heat-tint': tint } as CSSProperties}
-      onPointerLeave={() => setHover(null)}
+      // A finger leaves on lift: keep its tip until the next touch; a mouse clears on leave.
+      onPointerLeave={(e) => e.pointerType === 'mouse' && setHover(null)}
     >
       <span />
       {colLabels.map((label, i) => (

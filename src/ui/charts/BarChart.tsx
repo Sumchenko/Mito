@@ -1,4 +1,4 @@
-import { useId, useState, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { useElementWidth } from '@/lib/useElementWidth'
 import { labelEvery, timeTicks } from './scale'
 import s from './charts.module.css'
@@ -34,6 +34,8 @@ export function BarChart({ data, ariaLabel, height = 220, formatTick, average, a
   const uid = useId()
   const [ref, width] = useElementWidth<HTMLDivElement>()
   const [hover, setHover] = useState<number | null>(null)
+  /** The last pointer kind: a finger inspects bars, only a mouse click navigates. */
+  const pointer = useRef<string>('mouse')
 
   const totals = data.map((d) => d.segments.reduce((sum, x) => sum + x.value, 0))
   const max = Math.max(0, ...totals, ...data.map((d) => d.ghost ?? 0), average?.value ?? 0)
@@ -46,10 +48,34 @@ export function BarChart({ data, ariaLabel, height = 220, formatTick, average, a
   const every = labelEvery(slot, 34)
   const hovered = hover !== null ? data[hover] : undefined
 
+  // Touch has no hover: the finger scrubs across the bars and the tip follows, staying after
+  // the finger lifts until the next touch elsewhere. Vertical swipes still scroll the page.
+  const scrub = (e: ReactPointerEvent<SVGSVGElement>) => {
+    const x = e.clientX - e.currentTarget.getBoundingClientRect().left
+    setHover(Math.max(0, Math.min(data.length - 1, Math.floor((x - PAD.left) / slot))))
+  }
+  useEffect(() => {
+    if (hover === null || pointer.current !== 'touch') return
+    const onDown = (e: PointerEvent) => !ref.current?.contains(e.target as Node) && setHover(null)
+    document.addEventListener('pointerdown', onDown)
+    return () => document.removeEventListener('pointerdown', onDown)
+  }, [hover, ref])
+
   return (
     <div ref={ref} className={s.chart} style={{ height }}>
       {width > 0 && (
-        <svg width={width} height={height} role="img" aria-label={ariaLabel}>
+        <svg
+          width={width}
+          height={height}
+          role="img"
+          aria-label={ariaLabel}
+          className={s.scrubbable}
+          onPointerDown={(e) => {
+            pointer.current = e.pointerType
+            if (e.pointerType === 'touch') scrub(e)
+          }}
+          onPointerMove={(e) => e.pointerType === 'touch' && scrub(e)}
+        >
           {/* Grid */}
           {ticks.map((v) => (
             <g key={v}>
@@ -131,9 +157,9 @@ export function BarChart({ data, ariaLabel, height = 220, formatTick, average, a
                 y={PAD.top}
                 width={slot}
                 height={plotH}
-                onPointerEnter={() => setHover(i)}
-                onPointerLeave={() => setHover((h) => (h === i ? null : h))}
-                onClick={() => onSelect?.(d)}
+                onPointerEnter={(e) => e.pointerType === 'mouse' && setHover(i)}
+                onPointerLeave={(e) => e.pointerType === 'mouse' && setHover((h) => (h === i ? null : h))}
+                onClick={() => pointer.current !== 'touch' && onSelect?.(d)}
               />
             </g>
           ))}

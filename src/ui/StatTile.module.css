@@ -67,3 +67,20 @@
   border-radius: 2px;
   background: var(--tile-tint);
 }
+
+/* Phones: two tiles per row — a smaller icon leaves the numbers room. */
+@media (max-width: 640px) {
+  .tile {
+    gap: var(--space-2);
+    padding: var(--space-3);
+  }
+  .icon {
+    width: 30px;
+    height: 30px;
+    font-size: 16px;
+  }
+  .value {
+    font-size: 20px;
+    line-height: 26px;
+  }
+}
