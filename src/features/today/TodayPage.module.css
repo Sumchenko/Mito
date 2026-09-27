@@ -436,3 +436,19 @@
     opacity: 1;
   }
 }
+
+/* The brief inside the mentor panel; the input submits to the mentor page. */
+.mentor-brief {
+  margin-top: var(--space-4);
+}
+.send-button {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+a.badge {
+  text-decoration: none;
+}

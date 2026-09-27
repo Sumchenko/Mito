@@ -98,6 +98,24 @@ jobs:
           cd /var/www/mito/releases && ls -1t | tail -n +6 | xargs -r rm -rf
           EOF
 
+      # The AI mentor service (server/mentor), run by Node straight from TypeScript. Skipped with a
+      # warning until the server has the service (re-run deploy/setup-server.sh once).
+      - name: Mentor service
+        env:
+          GEMINI: ${{ secrets.MENTOR_GEMINI_KEY }}
+          GROQ: ${{ secrets.MENTOR_GROQ_KEY }}
+          SALT: ${{ secrets.MENTOR_SALT }}
+        run: |
+          if ! ssh "deploy@$HOST" 'test -f /etc/systemd/system/mito-mentor.service'; then
+            echo "::warning::The mentor service is not installed on the server yet: re-run deploy/setup-server.sh"
+            exit 0
+          fi
+          rsync -azR --delete --exclude '*.test.ts' server/mentor/ src/mentor/protocol.ts "deploy@$HOST:/opt/mito-mentor/"
+          printf 'MENTOR_GEMINI_KEY=%s\nMENTOR_GROQ_KEY=%s\nMENTOR_SALT=%s\n' "$GEMINI" "$GROQ" "${SALT:-$GITHUB_REPOSITORY_ID}" \
+            | ssh "deploy@$HOST" 'cat > /etc/mito/mentor.env'
+          ssh "deploy@$HOST" 'sudo systemctl restart mito-mentor'
+          curl -fsS --retry 10 --retry-delay 2 --retry-all-errors "https://${{ vars.MITO_DOMAIN }}/api/mentor/health"
+
       # Retries cover the first deploy on a new domain, while Caddy is still obtaining the certificate.
       - name: Smoke test
         run: |

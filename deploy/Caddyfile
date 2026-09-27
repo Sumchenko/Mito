@@ -12,6 +12,14 @@ __MITO_DOMAIN__ {
 		}
 	}
 
+	# The AI mentor: a local service (server/mentor). X-Real-IP is set here from the real
+	# connection, overriding anything the client sent, so per-IP limits cannot be dodged.
+	handle /api/* {
+		reverse_proxy 127.0.0.1:8787 {
+			header_up X-Real-IP {remote_host}
+		}
+	}
+
 	handle {
 		root * /var/www/mito/current
 		# Client-side routes (/tasks, /calendar, …) all load the app shell.

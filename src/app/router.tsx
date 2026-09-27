@@ -1,6 +1,6 @@
 import { createBrowserRouter, Navigate } from 'react-router'
 import { CalendarPage } from '@/features/calendar/CalendarPage'
-import { MentorPage } from '@/features/placeholders'
+import { MentorPage } from '@/features/mentor/MentorPage'
 import { StatsPage } from '@/features/stats/StatsPage'
 import { SettingsPage } from '@/features/settings/SettingsPage'
 import { TasksPage } from '@/features/tasks/TasksPage'

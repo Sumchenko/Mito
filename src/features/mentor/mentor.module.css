@@ -1,0 +1,317 @@
+.page {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-6) var(--space-10);
+}
+.header {
+  margin-bottom: var(--space-4);
+}
+.title {
+  font-family: var(--font-display);
+  font-size: var(--text-title);
+  line-height: var(--leading-title);
+  font-weight: 600;
+}
+.subtitle {
+  margin-top: var(--space-1);
+  color: var(--text-secondary);
+}
+
+/* Chat takes the main column; the plan and the brief sit beside it. */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 400px);
+  gap: var(--space-3);
+  align-items: start;
+}
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+@media (max-width: 1000px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* On narrow screens the plan and brief come first: they are the quick wins. */
+  .side {
+    order: -1;
+  }
+}
+@media (max-width: 640px) {
+  .page {
+    padding: var(--space-4) var(--space-3) var(--space-8);
+  }
+  .title {
+    font-size: 22px;
+    line-height: 28px;
+  }
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-5);
+  background: var(--bg-card);
+  border: 1px solid var(--stroke-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+.card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 600;
+}
+.title-icon {
+  font-size: 20px;
+  color: var(--accent-text);
+}
+.hint {
+  color: var(--text-secondary);
+  font-size: var(--text-caption);
+}
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.error {
+  font-size: var(--text-caption);
+  color: var(--danger);
+}
+.success {
+  font-size: var(--text-caption);
+  color: var(--text-secondary);
+}
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent-text);
+  font: inherit;
+  cursor: pointer;
+}
+.summary {
+  color: var(--text-secondary);
+}
+
+/* ---------- Plan preview ---------- */
+.plan-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.plan-item {
+  display: grid;
+  grid-template-columns: auto 88px minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-2);
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--accent) 6%, var(--bg-card));
+  border-left: 3px solid var(--accent);
+}
+/* Breaks read as breaks: neutral, like on the calendar. */
+.plan-item[data-break='true'] {
+  background: transparent;
+  border-left: 1px dashed var(--block-neutral);
+}
+.plan-time {
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-caption);
+  color: var(--text-secondary);
+  padding-top: 2px;
+}
+.plan-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.plan-text b {
+  font-weight: 600;
+}
+.plan-text small {
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+/* ---------- Brief ---------- */
+.brief-text {
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+.focus {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-caption);
+  color: var(--text-tertiary);
+}
+.focus-chip {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--accent-subtle);
+  color: var(--accent-text);
+}
+.spin {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---------- Chat ---------- */
+.chat {
+  min-height: 520px;
+}
+.messages {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  flex: 1;
+  max-height: 60vh;
+  min-height: 200px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.message {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 85%;
+}
+.message p {
+  white-space: pre-wrap;
+  line-height: 1.5;
+  padding: 10px 14px;
+  border-radius: 14px;
+}
+.message[data-role='user'] {
+  align-self: flex-end;
+}
+.message[data-role='user'] p {
+  background: var(--accent);
+  color: var(--text-on-accent);
+  border-bottom-right-radius: 4px;
+}
+.message[data-role='assistant'] p {
+  background: color-mix(in srgb, var(--text-primary) 5%, var(--bg-card));
+  border-bottom-left-radius: 4px;
+}
+.thinking {
+  color: var(--text-tertiary);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+@keyframes pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+.action {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--stroke-card);
+  font-size: var(--text-caption);
+}
+.action[data-state='applied'] {
+  border-color: color-mix(in srgb, var(--success, var(--accent)) 50%, transparent);
+}
+.action[data-state='dismissed'],
+.action[data-state='failed'] {
+  opacity: 0.6;
+}
+.action em {
+  font-style: normal;
+  color: var(--text-tertiary);
+}
+.action-buttons {
+  display: flex;
+  gap: 4px;
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chip {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--stroke-control);
+  background: var(--bg-control);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--text-caption);
+  cursor: pointer;
+}
+.chip:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+.composer {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+.composer textarea {
+  flex: 1;
+  min-height: 40px;
+  max-height: 160px;
+  padding: 9px 12px;
+  resize: vertical;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--stroke-control);
+  background: var(--bg-control-input, var(--bg-control));
+  color: var(--text-primary);
+  font: inherit;
+  outline: none;
+}
+.composer textarea:focus {
+  border-color: var(--accent);
+}
+@media (max-width: 640px) {
+  .message {
+    max-width: 92%;
+  }
+  .messages {
+    max-height: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin,
+  .thinking {
+    animation: none;
+  }
+}
+
+/* A card's content without the card, for embedding (the brief on Today). */
+.bare {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}

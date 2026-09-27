@@ -63,6 +63,29 @@ bash /root/setup-server.sh "<публичный ключ выкладки>"
 | `DEPLOY_SSH_KEY` | содержимое приватного ключа `~/.ssh/mito_deploy` целиком |
 | `SSH_KNOWN_HOSTS` | строка `ssh-keyscan -t ed25519 <IP>` (сверить отпечаток с сервером: `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`) |
 | `SUPABASE_DB_URL` | строка подключения из шага 2.3, с паролем |
+| `MENTOR_GROQ_KEY` | ключ Groq (console.groq.com → API Keys) — основной провайдер |
+| `MENTOR_GEMINI_KEY` | ключ Google AI Studio (aistudio.google.com → Get API key; из РФ — через VPN) — запасной: Flash и Flash-Lite |
+| `MENTOR_SALT` | необязательно: любая случайная строка для хеширования IP в счётчиках лимитов |
+
+## AI-ментор
+
+Сервис `server/mentor` (Node 24 запускает TypeScript напрямую) работает на том же сервере как служба
+`mito-mentor` под отдельным пользователем и слушает только `127.0.0.1:8787`. Caddy отдаёт его по
+`/api/*` и сам проставляет `X-Real-IP` — лимиты по IP нельзя обойти подменой заголовка.
+Ключи моделей лежат в `/etc/mito/mentor.env` (права 600) — их пишет workflow из секретов.
+
+- Установка на сервере — тот же `setup-server.sh` (повторный запуск безопасен): ставит Node 24 и службу.
+  Пока службы нет, шаг выкладки ментора пропускается с предупреждением.
+- Цепочка провайдеров: Groq → Gemini Flash → Gemini Flash-Lite; при лимите, перегрузке или ошибке запрос
+  уходит следующему. Порядок — `MENTOR_PROVIDERS` (`groq,gemini,gemini-lite`), модели — `MENTOR_GROQ_MODEL`,
+  `MENTOR_GEMINI_MODEL`, `MENTOR_GEMINI_LITE_MODEL`.
+- Лимиты (переменные окружения службы): `MENTOR_IP_DAY` (30), `MENTOR_IP_MINUTE` (6),
+  `MENTOR_GLOBAL_DAY` (800).
+- Смена ключа (истёк или отозван): новый ключ → секрет GitHub с тем же именем → Actions → Deploy →
+  Run workflow. Workflow перепишет `/etc/mito/mentor.env` и перезапустит службу.
+- Логи: `journalctl -u mito-mentor -f`. Проверка: `https://<домен>/api/mentor/health`.
+- Локально: `npm run mentor` (ключи `MENTOR_GEMINI_KEY` / `MENTOR_GROQ_KEY` в `.env.local`; без ключей —
+  встроенный тестовый провайдер), Vite проксирует `/api` на него.
 
 ## 4. Выкладка
 

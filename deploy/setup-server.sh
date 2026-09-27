@@ -40,14 +40,55 @@ if [ ! -e /var/www/mito/current ]; then
   chown -h deploy:deploy /var/www/mito/current
 fi
 
-echo "==> Let the deploy user update the Caddy config and reload Caddy — nothing else"
+echo "==> Let the deploy user update the Caddy config, reload Caddy and restart the mentor — nothing else"
 chown deploy:caddy /etc/caddy/Caddyfile
 chmod 664 /etc/caddy/Caddyfile
 cat >/etc/sudoers.d/mito-deploy <<'EOF'
-deploy ALL=(root) NOPASSWD: /usr/bin/systemctl reload caddy
+deploy ALL=(root) NOPASSWD: /usr/bin/systemctl reload caddy, /usr/bin/systemctl restart mito-mentor
 EOF
 chmod 440 /etc/sudoers.d/mito-deploy
 visudo -cf /etc/sudoers.d/mito-deploy
+
+echo "==> Node.js 24 for the AI mentor service"
+if ! node --version 2>/dev/null | grep -q '^v2[4-9]'; then
+  curl -fsSL https://deb.nodesource.com/setup_24.x | bash -
+  apt-get install -y -q nodejs
+fi
+
+echo "==> Mentor service: its own user, code from the deploy user, secrets readable by root only"
+id mito-mentor >/dev/null 2>&1 || adduser --system --no-create-home --group mito-mentor
+install -d -o deploy -g deploy /opt/mito-mentor
+install -d -m 755 /etc/mito
+if [ ! -e /etc/mito/mentor.env ]; then
+  install -m 600 -o deploy -g deploy /dev/null /etc/mito/mentor.env
+fi
+cat >/etc/systemd/system/mito-mentor.service <<'EOF'
+[Unit]
+Description=Mito AI mentor
+After=network-online.target
+
+[Service]
+User=mito-mentor
+Group=mito-mentor
+# systemd reads this as root before dropping privileges; the service user cannot.
+EnvironmentFile=/etc/mito/mentor.env
+Environment=NODE_ENV=production
+Environment=MENTOR_DB=/var/lib/mito-mentor/limits.db
+WorkingDirectory=/opt/mito-mentor
+ExecStart=/usr/bin/node server/mentor/main.ts
+Restart=on-failure
+RestartSec=3
+StateDirectory=mito-mentor
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl daemon-reload
+systemctl enable mito-mentor
 
 echo "==> Firewall: SSH, HTTP, HTTPS (and HTTP/3)"
 ufw allow OpenSSH

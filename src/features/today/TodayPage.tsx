@@ -9,7 +9,7 @@ import {
 import { AnimatePresence, motion } from 'motion/react'
 import type { CSSProperties } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { tasksRepo, type Project, type Task, type TimeBlock } from '@/data'
 import { pageTransition, springFirm } from '@/design/motion'
 import { listPath } from '@/features/tasks/paths'
@@ -20,6 +20,8 @@ import { daypartOf, Landscape } from '@/ui/Landscape'
 import { formatMinutes } from '@/lib/format'
 import { StatTile } from '@/ui/StatTile'
 import { GuestNudge } from '@/features/account/GuestNudge'
+import { BriefCard } from '@/features/mentor/BriefCard'
+import { useMentorInput } from '@/features/mentor/useMentorInput'
 import s from './TodayPage.module.css'
 import { useToday } from './useToday'
 
@@ -254,8 +256,15 @@ function DayTimeline({ now, dayStart, blocks, label, color }: DayTimelineProps) 
   )
 }
 
+/**
+ * The mentor on Today: the day's brief (fetched once a day by itself) and a quick way to ask.
+ * Questions open the full mentor page with the question already sent.
+ */
 function MentorPanel() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
+  const mentor = useMentorInput()
+  const ask = (q: string) => q.trim() && navigate(`/mentor?ask=${encodeURIComponent(q.trim())}`)
   const chips = [t('today.mentor.chipPlan'), t('today.mentor.chipFocus'), t('today.mentor.chipReview')]
   return (
     <aside className={s.mentor}>
@@ -264,17 +273,29 @@ function MentorPanel() {
           <Sparkle20Filled />
         </span>
         <h2 className={s.cardTitle}>{t('today.mentor.title')}</h2>
-        <span className={s.badge}>{t('today.mentor.status')}</span>
+        <Link to="/mentor" className={s.badge}>
+          {t('mentor.open')}
+        </Link>
       </div>
-      <p className={s.mentorIntro}>{t('today.mentor.intro')}</p>
+      <div className={s.mentorBrief}>
+        <BriefCard mentor={mentor} auto bare />
+      </div>
       <div className={s.mentorFooter}>
-        <label className={s.input}>
-          <input placeholder={t('today.mentor.placeholder')} disabled />
-          <Send20Filled className={s.send} />
-        </label>
+        <form
+          className={s.input}
+          onSubmit={(e) => {
+            e.preventDefault()
+            ask(new FormData(e.currentTarget).get('q') as string)
+          }}
+        >
+          <input name="q" placeholder={t('today.mentor.placeholder')} aria-label={t('today.mentor.placeholder')} />
+          <button type="submit" className={s.sendButton} aria-label={t('mentor.chat.send')}>
+            <Send20Filled className={s.send} />
+          </button>
+        </form>
         <div className={s.chips}>
           {chips.map((c) => (
-            <button key={c} type="button" className={s.chip} disabled>
+            <button key={c} type="button" className={s.chip} onClick={() => ask(c)}>
               {c}
             </button>
           ))}

@@ -8,3 +8,6 @@ dist
 !.vscode/extensions.json
 .DS_Store
 *.tsbuildinfo
+
+# Mentor server local state
+.mentor/
