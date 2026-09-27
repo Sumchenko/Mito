@@ -1,17 +1,16 @@
 import type { Task, TimeBlockKind } from '@/data'
 
-/** Accent for a block kind; task blocks use their project color instead (see useCalendarData). */
+/**
+ * On the calendar, color means a project. Anything that is not a task — events, breaks,
+ * routines — is neutral and told apart by shape and icon instead (see KindIcon).
+ */
+export const NEUTRAL_TINT = 'var(--block-neutral)'
+/** A task outside any project: the app accent, which no project uses. */
+export const NO_PROJECT_TINT = 'var(--accent)'
+
+/** Accent for a block kind; task blocks use their project color when they have one. */
 export function kindTint(kind: TimeBlockKind) {
-  switch (kind) {
-    case 'break':
-      return 'var(--text-tertiary)'
-    case 'routine':
-      return 'var(--tint-teal)'
-    case 'event':
-      return 'var(--tint-rose)'
-    default:
-      return 'var(--tint-blue)'
-  }
+  return kind === 'task' ? NO_PROJECT_TINT : NEUTRAL_TINT
 }
 
 /**

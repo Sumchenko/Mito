@@ -33,7 +33,17 @@ export interface DayStats {
 
 export interface DayItems {
   /** Plan blocks of the day with their side-by-side lane among overlapping blocks. */
-  blocks: { block: TimeBlock; startMin: number; endMin: number; tint: string; title: string; lane: number; lanes: number }[]
+  blocks: {
+    block: TimeBlock
+    startMin: number
+    endMin: number
+    tint: string
+    title: string
+    /** The block's task is finished (task blocks only). */
+    done: boolean
+    lane: number
+    lanes: number
+  }[]
   entries: { entry: TimeEntry; startMin: number; endMin: number; tint: string; title: string }[]
 }
 
@@ -79,9 +89,11 @@ export function useZoomData(rowFrom: number, rowTo: number, fallbackTitle: strin
 
     for (const block of blocks ?? []) {
       const tint = block.kind === 'task' ? (tintOfTask(block.taskId) ?? kindTint('task')) : kindTint(block.kind)
-      const title = (block.taskId ? taskById.get(block.taskId)?.title : undefined) ?? block.title ?? fallbackTitle
+      const task = block.taskId ? taskById.get(block.taskId) : undefined
+      const title = task?.title ?? block.title ?? fallbackTitle
+      const done = task?.status === 'done'
       eachDay(block.start, block.end, (day, part) =>
-        itemsOf(day).blocks.push({ block, ...part, tint, title, lane: 0, lanes: 1 }),
+        itemsOf(day).blocks.push({ block, ...part, tint, title, done, lane: 0, lanes: 1 }),
       )
     }
     for (const entry of entries ?? []) {

@@ -30,7 +30,8 @@ function greetingKey(hour: number) {
   return 'today.greetingEvening' as const
 }
 
-const tint = (project?: Project) => `var(--tint-${project?.color ?? 'blue'})`
+/** Project color; a task outside any project gets the accent, which no project uses. */
+const tint = (project?: Project) => (project ? `var(--tint-${project.color})` : 'var(--accent)')
 
 export function TodayPage() {
   const { t, i18n } = useTranslation()
@@ -134,9 +135,8 @@ export function TodayPage() {
                 return task?.title ?? b.title ?? t('today.tiles.noTask')
               }}
               color={(b) => {
-                if (b.kind === 'break') return 'var(--text-tertiary)'
-                if (b.kind === 'routine') return 'var(--tint-teal)'
-                if (b.kind === 'event') return 'var(--tint-rose)'
+                // Only tasks carry a project color; everything else stays neutral.
+                if (b.kind !== 'task') return 'var(--block-neutral)'
                 const task = b.taskId ? today.taskById.get(b.taskId) : undefined
                 return tint(task?.projectId ? today.projectById.get(task.projectId) : undefined)
               }}

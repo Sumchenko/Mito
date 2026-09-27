@@ -66,6 +66,10 @@
   --tint-orange: #d88a3c;
   --tint-rose: #cf5f78;
   --tint-teal: #2f9a9e;
+
+  /* Calendar blocks that are not tasks (events, breaks, routines). Never a project tint:
+     on the calendar, color always means a project. Follows the theme via --text-secondary. */
+  --block-neutral: var(--text-secondary);
 }
 
 /* ---------- Light ---------- */

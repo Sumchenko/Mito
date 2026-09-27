@@ -1,9 +1,12 @@
 import { Delete16Regular, Open16Regular, Sparkle16Regular } from '@fluentui/react-icons'
-import { useMemo, useState, type CSSProperties } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import {
   DomainError,
+  toLocalDate,
+  useProjects,
+  useTags,
   timeBlocksRepo,
   timeEntriesRepo,
   type Task,
@@ -12,14 +15,17 @@ import {
   type TimeEntry,
   type Timestamp,
 } from '@/data'
+import { createFromQuickAdd, findProject } from '@/features/tasks/createTask'
 import { projectList } from '@/features/tasks/lists'
 import { listPath } from '@/features/tasks/paths'
+import { parseQuickAdd } from '@/features/tasks/quickAddParser'
 import { TaskPicker } from '@/features/timer/TaskPicker'
 import { TaskTimerButton } from '@/features/timer/TaskTimerButton'
 import { formatMinutes } from '@/lib/format'
 import { Button } from '@/ui/Button'
 import { Popover } from '@/ui/Popover'
-import { kindTint } from './colors'
+import { NO_PROJECT_TINT } from './colors'
+import { KindIcon } from './KindIcon'
 import { MIN } from './geometry'
 import type { CalendarLookup } from './zoom/useZoomData'
 import s from './calendar.module.css'
@@ -45,48 +51,73 @@ interface DraftProps {
 }
 
 /**
- * New block: type a title, or pick a task. The first option always creates a block with the
- * typed title; the rest are matching open tasks (today's plan first).
+ * New block. Typing creates a task by default — with the same `#project !! 2h` shorthand as
+ * quick add — because time set aside is almost always for a task. Existing tasks follow, and
+ * a separate row adds the text as an event, break or routine instead.
  */
 export function DraftPopover({ anchor, start, end, data, onClose }: DraftProps) {
   const { t } = useTranslation()
   const range = useTimeRange()
+  const projects = useProjects()
+  const tags = useTags()
   const [text, setText] = useState('')
-  const [kind, setKind] = useState<Exclude<TimeBlockKind, 'task'>>('event')
   const [active, setActive] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  const today = toLocalDate()
 
+  const parsed = useMemo(() => parseQuickAdd(text, today), [text, today])
   const matches = useMemo(() => {
     const q = norm(text.trim())
     return data.tasks
       .filter((task) => task.status === 'open' && (!q || norm(task.title).includes(q)))
-      .slice(0, 6)
+      .slice(0, 5)
   }, [data.tasks, text])
 
-  const hasTitle = text.trim().length > 0
-  // Option 0 is "create with this title" when there is text; tasks follow.
+  const hasTitle = parsed.title.length > 0
+  // Option 0 is "create a task" when there is text; existing tasks follow.
   const options = hasTitle ? matches.length + 1 : matches.length
+  const newProject = parsed.projectName ? findProject(projects ?? [], parsed.projectName) : undefined
 
-  const create = async (taskId?: string) => {
-    if (!taskId && !hasTitle) return
+  const fail = (e: unknown) => setError(t(`errors.${e instanceof DomainError ? e.code : 'unknown'}`))
+
+  const plan = async (taskId: string) => {
+    await timeBlocksRepo.create({ taskId, start, end })
+    onClose()
+  }
+
+  const createTask = async () => {
     try {
-      await timeBlocksRepo.create(taskId ? { taskId, start, end } : { title: text, kind, start, end })
+      // The block's length is the natural estimate when none was typed; its day wins over a
+      // typed date, since the block is placed on the calendar already.
+      const task = await createFromQuickAdd(
+        { ...parsed, estimateMin: parsed.estimateMin ?? Math.round((end - start) / MIN) },
+        { list: 'inbox', projects: projects ?? [], tags: tags ?? [], today },
+      )
+      if (task) await plan(task.id)
+    } catch (e) {
+      fail(e)
+    }
+  }
+
+  const createOther = async (kind: Exclude<TimeBlockKind, 'task'>) => {
+    try {
+      await timeBlocksRepo.create({ title: text.trim(), kind, start, end })
       onClose()
     } catch (e) {
-      setError(t(`errors.${e instanceof DomainError ? e.code : 'unknown'}`))
+      fail(e)
     }
   }
 
   const choose = (index: number) => {
-    if (hasTitle && index === 0) void create()
+    if (hasTitle && index === 0) void createTask()
     else {
       const task = matches[hasTitle ? index - 1 : index]
-      if (task) void create(task.id)
+      if (task) void plan(task.id).catch(fail)
     }
   }
 
   return (
-    <Popover anchor={anchor} onClose={onClose} label={t('calendar.newBlock')}>
+    <Popover anchor={anchor} onClose={onClose} width={380} label={t('calendar.newBlock')}>
       <div className={s.popHead}>
         <span className={s.popKicker}>{t('calendar.newBlock')}</span>
         <span className={s.popTime}>{range(start, end)}</span>
@@ -121,11 +152,16 @@ export function DraftPopover({ anchor, start, end, data, onClose }: DraftProps) 
             onPointerEnter={() => setActive(0)}
             onClick={() => choose(0)}
           >
-            <span className={s.popDot} style={{ background: kindTint(kind) }} />
+            <span
+              className={s.popCheck}
+              style={{ borderColor: newProject ? `var(--tint-${newProject.color})` : NO_PROJECT_TINT }}
+            />
             <span className={s.popOptionTitle}>
-              {t('calendar.create')} «{text.trim()}»
+              {t('calendar.createTask')} «{parsed.title}»
             </span>
-            <span className={s.popOptionMeta}>{t(`calendar.kinds.${kind}`)}</span>
+            <span className={s.popOptionMeta}>
+              {parsed.projectName ? `#${newProject?.name ?? parsed.projectName}` : t('tasks.lists.inbox')}
+            </span>
           </li>
         )}
         {matches.map((task, i) => {
@@ -140,7 +176,10 @@ export function DraftPopover({ anchor, start, end, data, onClose }: DraftProps) 
               onPointerEnter={() => setActive(index)}
               onClick={() => choose(index)}
             >
-              <span className={s.popDot} style={{ background: project ? `var(--tint-${project.color})` : 'var(--tint-blue)' }} />
+              <span
+                className={s.popCheck}
+                style={{ borderColor: project ? `var(--tint-${project.color})` : NO_PROJECT_TINT }}
+              />
               <span className={s.popOptionTitle}>{task.title}</span>
               {project && <span className={s.popOptionMeta}>{project.name}</span>}
             </li>
@@ -148,19 +187,16 @@ export function DraftPopover({ anchor, start, end, data, onClose }: DraftProps) 
         })}
       </ul>
       {hasTitle && (
-        <div className={s.kinds}>
-          {KINDS.map((k) => (
-            <button
-              key={k}
-              type="button"
-              className={s.kind}
-              data-active={k === kind}
-              style={{ '--kind': kindTint(k) } as CSSProperties}
-              onClick={() => setKind(k)}
-            >
-              {t(`calendar.kinds.${k}`)}
-            </button>
-          ))}
+        <div className={s.other}>
+          <span className={s.otherLabel}>{t('calendar.asOther')}</span>
+          <div className={s.kinds}>
+            {KINDS.map((k) => (
+              <button key={k} type="button" className={s.kind} onClick={() => void createOther(k)}>
+                <KindIcon kind={k} />
+                {t(`calendar.kinds.${k}`)}
+              </button>
+            ))}
+          </div>
         </div>
       )}
       {error && <p className={s.popError}>{error}</p>}
@@ -231,9 +267,9 @@ export function BlockPopover({ anchor, block, data, onClose }: BlockProps) {
               type="button"
               className={s.kind}
               data-active={k === block.kind}
-              style={{ '--kind': kindTint(k) } as CSSProperties}
               onClick={() => void timeBlocksRepo.update(block.id, { kind: k })}
             >
+              <KindIcon kind={k} />
               {t(`calendar.kinds.${k}`)}
             </button>
           ))}

@@ -1,5 +1,7 @@
+import { CheckmarkFilled } from '@fluentui/react-icons'
 import { memo, type CSSProperties } from 'react'
-import type { LocalDate } from '@/data'
+import { tasksRepo, type LocalDate } from '@/data'
+import { KindIcon } from '../KindIcon'
 import type { DayItems, DayStats } from './useZoomData'
 import s from './zoom.module.css'
 
@@ -55,12 +57,13 @@ export const DayTile = memo(function DayTile({
       {layers.timeline && (
         <div className={s.timeline}>
           <div className={s.plan}>
-            {items?.blocks.map(({ block, startMin, endMin, tint, title, lane, lanes }) =>
+            {items?.blocks.map(({ block, startMin, endMin, tint, title, done, lane, lanes }) =>
               block.id === hiddenBlockId ? null : (
                 <div
                   key={block.id}
                   className={s.block}
                   data-kind={block.kind}
+                  data-done={done}
                   data-block-id={block.id}
                   data-day={day}
                   data-start={startMin}
@@ -76,7 +79,24 @@ export const DayTile = memo(function DayTile({
                   }
                 >
                   <span className={s.edgeTop} data-edge="start" />
-                  <span className={s.blockTitle}>{title}</span>
+                  <span className={s.blockTitle}>
+                    {/* A task can be ticked off right here; anything else shows what it is. */}
+                    {block.kind === 'task' && block.taskId ? (
+                      <button
+                        type="button"
+                        className={s.blockCheck}
+                        data-chrome
+                        aria-pressed={done}
+                        aria-label={title}
+                        onClick={() => void tasksRepo.setStatus(block.taskId!, done ? 'open' : 'done')}
+                      >
+                        {done && <CheckmarkFilled />}
+                      </button>
+                    ) : block.kind !== 'task' ? (
+                      <KindIcon kind={block.kind} className={s.blockIcon} />
+                    ) : null}
+                    {title}
+                  </span>
                   <span className={s.blockTime}>
                     {clock(startMin)}–{clock(endMin)}
                   </span>

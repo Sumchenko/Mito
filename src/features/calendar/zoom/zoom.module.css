@@ -116,8 +116,54 @@
 .root[data-interactive='true'] .block:hover {
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--block) 45%, transparent);
 }
+/* Not a task: no project color, a light dashed outline and an icon instead of the task check. */
+.block:not([data-kind='task']) {
+  border: 1px dashed color-mix(in srgb, var(--block) 50%, transparent);
+  background: color-mix(in srgb, var(--block) 6%, var(--bg-card));
+  box-shadow: none;
+}
+.block:not([data-kind='task']) .block-title {
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+/* A break is time off: a faint hatch reads as "empty on purpose". */
 .block[data-kind='break'] {
-  background: var(--bg-subtle-hover);
+  background:
+    repeating-linear-gradient(-45deg, transparent 0 5px, color-mix(in srgb, var(--block) 9%, transparent) 5px 6px),
+    var(--bg-card);
+}
+.block-icon {
+  margin-right: 4px;
+  font-size: 12px;
+  vertical-align: -2px;
+  color: var(--block);
+}
+.block-check {
+  display: inline-grid;
+  place-items: center;
+  width: 12px;
+  height: 12px;
+  margin-right: 5px;
+  padding: 0;
+  vertical-align: -2px;
+  border-radius: 50%;
+  border: 1.5px solid var(--block);
+  background: var(--bg-card);
+  color: var(--text-on-accent);
+  font-size: 8px;
+  cursor: pointer;
+}
+.block-check:hover {
+  background: color-mix(in srgb, var(--block) 25%, var(--bg-card));
+}
+.block[data-done='true'] {
+  opacity: 0.6;
+}
+.block[data-done='true'] .block-check {
+  background: var(--block);
+}
+.block[data-done='true'] .block-title {
+  text-decoration: line-through;
 }
 .block-title {
   display: block;
