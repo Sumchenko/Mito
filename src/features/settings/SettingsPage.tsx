@@ -1,10 +1,11 @@
 import {
+  BrainCircuit20Regular,
   DarkTheme20Regular,
   LocalLanguage20Regular,
   PaintBrush20Regular,
 } from '@fluentui/react-icons'
 import { useTranslation } from 'react-i18next'
-import { useSettings, type StylePreference, type ThemePreference } from '@/app/settings'
+import { useSettings, type AiMode, type StylePreference, type ThemePreference } from '@/app/settings'
 import type { Language } from '@/i18n'
 import { Page } from '@/ui/Page'
 import { Segmented } from '@/ui/Segmented'
@@ -15,7 +16,7 @@ import s from './SettingsPage.module.css'
 
 export function SettingsPage() {
   const { t } = useTranslation()
-  const { theme, style, language, setTheme, setStyle, setLanguage } = useSettings()
+  const { theme, style, language, aiMode, setTheme, setStyle, setLanguage, setAiMode } = useSettings()
 
   const themeOptions: { value: ThemePreference; label: string }[] = [
     { value: 'system', label: t('settings.themeSystem') },
@@ -34,6 +35,22 @@ export function SettingsPage() {
   return (
     <Page title={t('settings.title')}>
       <AccountSettings sectionClass={s.section} />
+      <h2 className={s.section}>{t('settings.ai')}</h2>
+      <SettingRow
+        icon={<BrainCircuit20Regular />}
+        title={t('settings.aiMode')}
+        description={t('settings.aiModeHint')}
+      >
+        <Segmented<AiMode>
+          aria-label={t('settings.aiMode')}
+          value={aiMode ?? 'mentor'}
+          options={[
+            { value: 'mentor', label: t('settings.aiMentor') },
+            { value: 'assistant', label: t('settings.aiAssistant') },
+          ]}
+          onChange={setAiMode}
+        />
+      </SettingRow>
       <h2 className={s.section}>{t('settings.appearance')}</h2>
       <SettingRow
         icon={<PaintBrush20Regular />}

@@ -1,6 +1,7 @@
 import { motion } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 import { NavLink } from 'react-router'
+import { useSettings } from '@/app/settings'
 import { springFirm } from '@/design/motion'
 import { footerNav, mainNav, type NavItem } from './navItems'
 import s from './NavPane.module.css'
@@ -39,7 +40,9 @@ export function NavPane({ compact, bottom }: NavPaneProps) {
 
 function NavEntry({ item, compact, bottom }: { item: NavItem; compact: boolean; bottom?: boolean }) {
   const { t } = useTranslation()
-  const label = t(`nav.${item.labelKey}`)
+  const assistant = useSettings((st) => st.aiMode === 'assistant')
+  // The same page is the "Assistant" for someone who only plans, the "Mentor" for a learner.
+  const label = t(`nav.${item.labelKey === 'mentor' && assistant ? 'assistant' : item.labelKey}`)
   return (
     <NavLink
       to={item.to}

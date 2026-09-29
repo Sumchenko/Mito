@@ -5,6 +5,7 @@ import { useSettings } from '@/app/settings'
 import { useApplySettings } from '@/app/useApplySettings'
 import { AuthDialog } from '@/features/account/AuthDialog'
 import { TimerController } from '@/features/timer/TimerController'
+import { WelcomeGate } from '@/features/welcome/Welcome'
 import { useMediaQuery } from '@/lib/useMediaQuery'
 import { NavPane } from './NavPane'
 import { TitleBar } from './TitleBar'
@@ -35,6 +36,7 @@ export function AppShell() {
         </AnimatePresence>
       </main>
       {mobile && <NavPane compact bottom />}
+      <WelcomeGate />
     </div>
   )
 }

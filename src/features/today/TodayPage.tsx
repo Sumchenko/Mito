@@ -9,6 +9,7 @@ import {
 import { AnimatePresence, motion } from 'motion/react'
 import type { CSSProperties } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useSettings } from '@/app/settings'
 import { Link, useNavigate } from 'react-router'
 import { tasksRepo, type Project, type Task, type TimeBlock } from '@/data'
 import { pageTransition, springFirm } from '@/design/motion'
@@ -262,6 +263,7 @@ function DayTimeline({ now, dayStart, blocks, label, color }: DayTimelineProps) 
  */
 function MentorPanel() {
   const { t } = useTranslation()
+  const assistant = useSettings((st) => st.aiMode === 'assistant')
   const navigate = useNavigate()
   const mentor = useMentorInput()
   const ask = (q: string) => q.trim() && navigate(`/mentor?ask=${encodeURIComponent(q.trim())}`)
@@ -272,7 +274,9 @@ function MentorPanel() {
         <span className={s.mentorIcon}>
           <Sparkle20Filled />
         </span>
-        <h2 className={s.cardTitle}>{t('today.mentor.title')}</h2>
+        <h2 className={s.cardTitle}>
+          {assistant ? t('today.mentor.assistantTitle') : t('today.mentor.title')}
+        </h2>
         <Link to="/mentor" className={s.badge}>
           {t('mentor.open')}
         </Link>

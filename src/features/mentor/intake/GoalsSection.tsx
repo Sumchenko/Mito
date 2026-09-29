@@ -13,7 +13,7 @@ import s from './intake.module.css'
  * Learning goals on the mentor page: an invitation to start one when there are none, otherwise
  * a card per goal with its current stage and the next task. A paused intake can be resumed.
  */
-export function GoalsSection() {
+export function GoalsSection({ invite = true }: { invite?: boolean }) {
   const { t } = useTranslation()
   const goals = useGoals()
   const tasks = useAllTasks()
@@ -35,10 +35,11 @@ export function GoalsSection() {
     </div>
   )
 
+  // The assistant mode shows goals the user already has, but does not invite to new ones.
   if (current.length === 0) return (
     <>
       {resume}
-      {!paused && <GoalInvite />}
+      {!paused && invite && <GoalInvite />}
     </>
   )
 

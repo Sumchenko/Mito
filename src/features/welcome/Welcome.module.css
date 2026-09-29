@@ -1,0 +1,209 @@
+/* The first screen covers the app: the landscape below, the choice above it. */
+.welcome {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  overflow-y: auto;
+  background: var(--bg-base);
+}
+.scene {
+  position: fixed;
+  inset: auto 0 0 0;
+  width: 100%;
+  height: 42vh;
+  pointer-events: none;
+  mask-image: linear-gradient(to bottom, transparent 0, #000 45%);
+}
+:global(:root[data-style='strict']) .scene {
+  display: none;
+}
+
+.inner {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  width: min(100%, 920px);
+  margin: auto;
+  padding: var(--space-8) var(--space-6) var(--space-10);
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: var(--space-3);
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 600;
+}
+.logo {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-size: 18px;
+}
+.tagline {
+  color: var(--text-secondary);
+}
+.title {
+  font-family: var(--font-display);
+  font-size: 40px;
+  line-height: 48px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+/* Two doors, each with its own small picture of what lies behind it. */
+.choices {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+.choice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border-radius: var(--radius-card);
+  border: 1px solid var(--stroke-card);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-card);
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color var(--dur-fast) linear,
+    box-shadow var(--dur-normal) var(--ease-out),
+    transform var(--dur-normal) var(--ease-out);
+}
+.choice:hover {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--stroke-card));
+  box-shadow: var(--shadow-flyout);
+  transform: translateY(-2px);
+}
+.choice:focus-visible {
+  outline: 2px solid var(--stroke-focus-outer);
+  outline-offset: 3px;
+}
+.choice-title {
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 600;
+}
+.choice-title svg {
+  margin-left: 6px;
+  vertical-align: -3px;
+  color: var(--accent-text);
+  transition: transform var(--dur-normal) var(--ease-out);
+}
+.choice:hover .choice-title svg {
+  transform: translateX(3px);
+}
+.nowrap {
+  white-space: nowrap;
+}
+.choice-text {
+  color: var(--text-secondary);
+  line-height: var(--leading-body);
+}
+
+.art {
+  width: 100%;
+  max-width: 220px;
+  height: auto;
+  margin-bottom: var(--space-1);
+}
+.hill {
+  fill: color-mix(in srgb, var(--accent) 16%, var(--bg-card));
+}
+.trail {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 1 5;
+}
+.camp {
+  fill: var(--bg-card);
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.pole {
+  stroke: var(--text-secondary);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+.flag {
+  fill: var(--accent);
+}
+.column {
+  fill: color-mix(in srgb, var(--text-primary) 4%, var(--bg-card));
+}
+.block {
+  fill: color-mix(in srgb, var(--accent) 70%, var(--bg-card));
+}
+.block[data-alt='true'] {
+  fill: color-mix(in srgb, var(--tint-teal) 70%, var(--bg-card));
+}
+
+.foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  color: var(--text-tertiary);
+  font-size: var(--text-caption);
+}
+.link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent-text);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.link:focus-visible {
+  outline: 2px solid var(--stroke-focus-outer);
+  outline-offset: 2px;
+}
+
+@media (max-width: 700px) {
+  .choices {
+    grid-template-columns: 1fr;
+  }
+  .inner {
+    margin: 0 auto;
+    padding: var(--space-6) var(--space-4) var(--space-8);
+    gap: var(--space-5);
+  }
+  .title {
+    font-size: 30px;
+    line-height: 38px;
+  }
+  .art {
+    max-width: 160px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .choice,
+  .choice-title svg {
+    transition: none;
+  }
+  .choice:hover {
+    transform: none;
+  }
+}

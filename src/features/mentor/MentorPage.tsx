@@ -1,6 +1,7 @@
 import { motion } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router'
+import { useSettings } from '@/app/settings'
 import { pageTransition } from '@/design/motion'
 import { BriefCard } from './BriefCard'
 import { ChatPanel } from './ChatPanel'
@@ -19,20 +20,21 @@ export function MentorPage() {
   const { t } = useTranslation()
   const mentor = useMentorInput()
   const intake = useIntake((st) => st.active)
+  const assistant = useSettings((st) => st.aiMode === 'assistant')
   // "?ask=…" sends a question right away, e.g. from the suggestion chips on Today.
   const [params, setParams] = useSearchParams()
 
   return (
     <motion.div className={s.page} {...pageTransition}>
       <header className={s.header}>
-        <h1 className={s.title}>{t('mentor.title')}</h1>
-        <p className={s.subtitle}>{t('mentor.subtitle')}</p>
+        <h1 className={s.title}>{assistant ? t('mentor.assistantTitle') : t('mentor.title')}</h1>
+        <p className={s.subtitle}>{assistant ? t('mentor.assistantSubtitle') : t('mentor.subtitle')}</p>
       </header>
       {intake ? (
         <IntakePanel mentor={mentor} />
       ) : (
         <>
-          <GoalsSection />
+          <GoalsSection invite={!assistant} />
           <div className={s.layout}>
             <ChatPanel
               mentor={mentor}
