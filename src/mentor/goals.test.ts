@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { goalsRepo, mentorNotesRepo, tasksRepo } from '@/data'
-import { intakeProgress, startGoal, toGoalProfile } from './goals'
+import { intakeProgress, onStudyDay, startGoal, toGoalProfile } from './goals'
 import type { RoadmapResponse } from './protocol'
 
 const roadmap: RoadmapResponse = {
@@ -28,6 +28,32 @@ describe('intake profile', () => {
       subject: 'Python',
       level: 'zero',
     })
+  })
+})
+
+describe('study days', () => {
+  it('moves a day onto the next study day', () => {
+    // 2026-09-30 is a Wednesday (2); study days: Monday, Thursday, Saturday.
+    expect(onStudyDay('2026-09-30', [0, 3, 5])).toBe('2026-10-01')
+    expect(onStudyDay('2026-10-01', [0, 3, 5])).toBe('2026-10-01')
+    expect(onStudyDay('2026-10-04', [0, 3, 5])).toBe('2026-10-05')
+    expect(onStudyDay('2026-09-30', [])).toBe('2026-09-30')
+    expect(onStudyDay('2026-09-30')).toBe('2026-09-30')
+  })
+
+  it('a new goal keeps its study days and plans onto them', async () => {
+    const goal = await startGoal(
+      { ...roadmap, tasks: [{ title: 'On Wednesday', stageId: 's1', plannedDate: '2026-09-30' }] },
+      { subject: 'Python', studyDays: [0, 3] },
+      [true],
+      '2026-09-27',
+    )
+    expect(goal.studyDays).toEqual([0, 3])
+    const [task] = await tasksRepo.listByProject(goal.projectId!)
+    expect(task?.plannedDate).toBe('2026-10-01')
+    await goalsRepo.update(goal.id, { studyDays: [] })
+    expect((await goalsRepo.get(goal.id))?.studyDays).toBeUndefined()
+    await expect(goalsRepo.update(goal.id, { studyDays: [7] })).rejects.toMatchObject({ code: 'invalid' })
   })
 })
 

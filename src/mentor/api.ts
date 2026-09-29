@@ -2,6 +2,7 @@ import {
   contextRefs,
   parseBrief,
   parseChat,
+  parseCoach,
   parseIntake,
   parsePlan,
   parseRoadmap,
@@ -10,6 +11,9 @@ import {
   type BriefResponse,
   type ChatMessage,
   type ChatResponse,
+  type CoachKind,
+  type CoachResponse,
+  type GoalContext,
   type IntakeAbout,
   type IntakeProfile,
   type IntakeResponse,
@@ -122,4 +126,30 @@ export async function requestRoadmap(
   )
   if (!out) throw new MentorApiError('failed')
   return out
+}
+
+/** One turn of a coaching session; an empty conversation lets the mentor open it. */
+export async function requestCoach(
+  lang: MentorLang,
+  kind: CoachKind,
+  today: string,
+  goal: GoalContext,
+  messages: ChatMessage[],
+  focus: { taskRef?: string; stageId?: string } = {},
+): Promise<CoachResponse> {
+  const out = parseCoach(
+    await call({ mode: 'coach', lang, kind, today, goal, messages, ...focus }),
+    goal,
+    { kind, ...(focus.taskRef ? { taskRef: focus.taskRef } : {}) },
+  )
+  if (!out) throw new MentorApiError('failed')
+  const titles = new Map(goal.tasks.map((t) => [t.ref, t.title]))
+  const [open, close] = lang === 'ru' ? ['«', '»'] : ['“', '”']
+  // Refs slipping into the prose read as titles, as in the other modes.
+  return {
+    ...out,
+    reply: out.reply.replace(/\b(t\d+)\b/g, (m, ref: string) =>
+      titles.has(ref) ? `${open}${titles.get(ref)}${close}` : m,
+    ),
+  }
 }

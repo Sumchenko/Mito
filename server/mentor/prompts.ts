@@ -61,6 +61,8 @@ const BRIEF = {
   morning: `TASK: a morning briefing for today, at most 90 words.
 Mention what matters most today (deadlines, the plan, whether the plan fits the day), and give one
 concrete tip grounded in the user's history (rhythm, estimate accuracy, plan completion).
+If a learning goal in "goals" has reviewDue, slipped tasks or idleDays of 3 or more, add one
+gentle sentence about it: name the goal and the concrete next step (never blame).
 Plain text, short paragraphs or "•" bullets, no headings.
 Answer with JSON only: {"text": "…", "focus": ["t3", "t1"]} — focus: up to 3 task refs to start with.`,
   evening: `TASK: an evening review of today, at most 90 words.
@@ -96,6 +98,8 @@ Rules:
   answer ("2–3 hours a week", "Complete beginner"). Empty when done.
 - Convert time to weeklyMinutes ("an hour on weekdays" = 300) and deadlines to targetDate, which
   is always in the future: "by summer" is the next summer after today.
+- "studyDays": the weekdays they can study on, 0 = Monday … 6 = Sunday ("weekday evenings and
+  Saturday" = [0,1,2,3,4,5]); fill it as soon as the schedule is known.
 - "title": a short name of the goal, 2–5 words, in the user's language.
 - "done": true once the essentials are known — usually after 4–7 questions — or when the user
   wants to move on. Then "reply" briefly sums up in one sentence and says a plan comes next.
@@ -103,7 +107,7 @@ Rules:
 Answer with JSON only:
 {"reply": "…", "options": ["…"], "profile": {"title": "…", "subject": "…", "level": "…",
  "background": "…", "motivation": "…", "success": "…", "schedule": "…", "style": "…",
- "constraints": "…", "targetDate": "YYYY-MM-DD", "weeklyMinutes": 180}, "done": false}
+ "constraints": "…", "targetDate": "YYYY-MM-DD", "weeklyMinutes": 180, "studyDays": [0, 2, 5]}, "done": false}
 In "profile" repeat every known field (short phrases in the user's language), omit unknown ones.`
 
 const ROADMAP = `TASK: design a learning plan for the goal in PROFILE, as an experienced teacher.
@@ -122,7 +126,8 @@ First tasks — only for the next 7–14 days (the first stage, perhaps the star
   (a book and chapter, a section of the official docs, a known course). Never invent links.
 - Every few days a short review task (recall without looking, then check), and a small practical
   task at the end of the week.
-- "plannedDate": days that fit the user's schedule, from today on, about one task per study day;
+- "plannedDate": from today on, only on PROFILE.studyDays when given (0 = Monday … 6 = Sunday; see
+  DATES for weekdays), about one task per study day;
   prefer days that are not already full in USER DATA.
 "summary": 2–3 sentences for the user: the approach, and what the first week gives.
 "notes": up to 5 short facts about the user worth remembering later ("Studies on weekday
@@ -132,6 +137,58 @@ Answer with JSON only:
  "stages": [{"id": "s1", "title": "…", "outcome": "…", "weeks": 2}],
  "tasks": [{"title": "…", "stageId": "s1", "estimateMin": 45, "plannedDate": "YYYY-MM-DD", "notes": "…"}],
  "notes": ["…"]}`
+
+const COACH = `TASK: a coaching session about the learning goal in GOAL.
+Refs ("t3") are for JSON fields only; in text name a task by its title in quotes.
+Each reply is short: 1–4 sentences, at most one question per turn. "options": 2–4 quick answers
+(≤ 40 characters) in the user's language, phrased as the user would answer; empty when done or when
+a free answer is needed.
+When the session is complete set "done": true and add a "proposal"; until then no proposal.
+Planned dates are today or later and fall on GOAL.profile.studyDays when given (0 = Monday …
+6 = Sunday). Never plan or move anything to a day
+the user cannot study — check the profile, the notes and what they said in this session (use the
+DATES list for weekdays). Tasks are 15–120 minutes, actionable,
+and "notes" say what exactly to do and with what (known resources by name, never invented links).
+Answer with JSON only:
+{"reply": "…", "options": ["…"], "done": false,
+ "proposal": {"tasks": [{"title": "…", "stageId": "s2", "estimateMin": 45, "plannedDate": "YYYY-MM-DD", "notes": "…", "parentRef": "t3"}],
+              "moves": [{"taskRef": "t3", "date": "YYYY-MM-DD"}],
+              "notes": ["…"],
+              "check": {"score": 0.8, "passed": true, "gaps": ["…"]}}}`
+
+const COACH_KIND = {
+  review: `KIND: the weekly check-in.
+First turn: open with an honest two-sentence summary of the last week from GOAL — time put in
+against weeklyMinutes, tasks done, open tasks whose planned day has passed — then ask how it went
+or what got in the way. Finish right after the user's answer (ask one more question only if
+something essential is unclear):
+- tasks for the next 7 days of the active stage (new standalone tasks, no parentRef), continuing
+  logically from what is done, with a
+  short recall-based review and a small practical task; size them to what the user actually
+  managed (lighter if they fell short, never above weeklyMinutes);
+- moves: every open task whose planned day has passed, to a sensible day;
+- notes: new lasting facts about the user, if any.
+If the active stage looks complete, say so and suggest the stage check instead of new tasks.`,
+  stuck: `KIND: the user is stuck on the task TASK.
+First turn: ask what exactly is hard, with options such as "I don't get the topic", "No time",
+"Hard to get started", "Boring". Then help as an experienced teacher: if it is understanding,
+explain the core idea another way in 2–4 sentences with a tiny example; if time, make it smaller;
+if getting started, give the very first concrete step. Finish (done: true) no later than your
+reply to the user's second answer — do not keep asking once they say it is clear:
+- tasks: 2–5 small steps as subtasks of the task (parentRef = its ref), 15–40 minutes each, the
+  first one easy;
+- moves: the task itself to a better day, if needed;
+- notes: the difficulty, if it is worth remembering.`,
+  check: `KIND: the knowledge check of the stage STAGE before moving on.
+Ask exactly three questions, one per turn, built on the stage's outcome and the tasks done: one
+"explain in your own words", one "what happens / what is wrong here" with a tiny example, and one
+small practical task. Never reveal answers or hint at them before grading ("options" stay empty);
+accept "I don't know" and move on.
+After the third answer, finish: brief feedback on each answer (what was right, what to fix), then
+proposal.check = {score 0–1, passed: score ≥ 0.7, gaps: topics to revisit}. If passed, tasks are
+the first week of the NEXT stage (its stageId); if not, 2–4 focused review tasks for the gaps in
+this stage. notes: a gap worth remembering, if any.`,
+}
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
@@ -169,6 +226,32 @@ export function buildMessages(req: MentorRequest): LlmMessage[] {
         `PROFILE SO FAR (JSON):\n${JSON.stringify(req.profile)}`,
         INTAKE,
       ]),
+      ...conversation(req.messages),
+    ]
+  }
+
+  if (req.mode === 'coach') {
+    const task = req.taskRef && req.goal.tasks.find((t) => t.ref === req.taskRef)
+    const stage = req.stageId && req.goal.stages.find((s) => s.id === req.stageId)
+    return [
+      systemMessage([
+        TEACHER,
+        language(req.lang),
+        `DATES: ${dates(req.today)}`,
+        `GOAL (JSON):\n${JSON.stringify(req.goal)}`,
+        // Pulled out of the JSON: limits like "no study on Wednesdays" are easy to miss in there.
+        ...(req.goal.notes.length
+          ? [
+              `WHAT YOU KNOW ABOUT THE USER (respect it, above all days they cannot study):\n- ${req.goal.notes.join('\n- ')}`,
+            ]
+          : []),
+        ...(task ? [`TASK: ${task.ref} "${task.title}"`] : []),
+        ...(stage ? [`STAGE: ${stage.id} "${stage.title}" — outcome: ${stage.outcome}`] : []),
+        COACH,
+        COACH_KIND[req.kind],
+      ]),
+      // The mentor opens a session, but models expect the conversation to start with the user.
+      { role: 'user', content: 'Start the session.' },
       ...conversation(req.messages),
     ]
   }

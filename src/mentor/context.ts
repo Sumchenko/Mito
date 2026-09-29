@@ -3,6 +3,7 @@ import {
   addDays,
   startOfLocalDate,
   toLocalDate,
+  type Goal,
   type Id,
   type LocalDate,
   type Project,
@@ -11,6 +12,7 @@ import {
   type TimeEntry,
   type Timestamp,
 } from '@/data'
+import { goalSignals } from './coach'
 import type { ContextBlock, ContextTask, IntakeAbout, MentorContext } from './protocol'
 
 /** Days of history the mentor looks back on. */
@@ -31,6 +33,8 @@ export interface ContextInput {
   entries: readonly TimeEntry[]
   /** All-time tracked ms per task. */
   trackedTotals: ReadonlyMap<Id, number>
+  /** Learning goals: their slippage goes into the brief. */
+  goals?: readonly Goal[]
 }
 
 /** Short refs ↔ real ids: the model sees only refs; actions are resolved back through this. */
@@ -82,7 +86,8 @@ export function inferWorkHours(entries: readonly TimeEntry[], now: Timestamp) {
  * core). Pure — the same input gives the same context.
  */
 export function buildContext(input: ContextInput): { context: MentorContext; refs: RefMap } {
-  const { now, tasks, projects, blocks, entries, trackedTotals } = input
+  const { now, tasks, projects, blocks, entries, trackedTotals, goals = [] } = input
+  const signals = goalSignals(goals, tasks, entries, now)
   const today = toLocalDate(now)
   const horizon = addDays(today, 7)
   const lastDay = addDays(today, AHEAD_DAYS - 1)
@@ -217,6 +222,7 @@ export function buildContext(input: ContextInput): { context: MentorContext; ref
             minutes: Math.round(p.ms / MIN),
           })),
       },
+      ...(signals.length ? { goals: signals } : {}),
     },
   }
 }

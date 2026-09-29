@@ -24,12 +24,15 @@ export interface GoalInput {
   stages: StageInput[]
   targetDate?: LocalDate
   weeklyMinutes?: number
+  studyDays?: number[]
   /** Color of the goal's project; picked from the palette when omitted. */
   color?: TintKey
 }
 
 export type GoalPatch = Partial<
-  Pick<GoalInput, 'title' | 'profile' | 'targetDate' | 'weeklyMinutes'> & { stages: GoalStage[] }
+  Pick<GoalInput, 'title' | 'profile' | 'targetDate' | 'weeklyMinutes' | 'studyDays'> & {
+    stages: GoalStage[]
+  }
 >
 
 const STATUSES: readonly GoalStatus[] = ['active', 'paused', 'done', 'dropped']
@@ -42,6 +45,16 @@ function checkStages(stages: readonly StageInput[]) {
     ids.add(s.id)
     requireName(s.title, 'Stage title')
   }
+}
+
+/** Distinct weekdays in order; an empty set means "any day" and is not stored. */
+function cleanDays(days: readonly number[] | undefined): number[] | undefined {
+  if (days === undefined) return undefined
+  if (days.some((d) => !Number.isInteger(d) || d < 0 || d > 6)) {
+    throw new DomainError('invalid', 'studyDays are weekdays 0 (Monday) to 6 (Sunday)')
+  }
+  const set = [...new Set(days)].sort()
+  return set.length ? set : undefined
 }
 
 function checkPlanFields(input: { targetDate?: LocalDate; weeklyMinutes?: number }) {
@@ -107,6 +120,7 @@ export const goalsRepo = {
         projectId: project.id,
         targetDate: input.targetDate,
         weeklyMinutes: input.weeklyMinutes,
+        studyDays: cleanDays(input.studyDays),
         order: (last?.order ?? 0) + ORDER_STEP,
       }
       await db.goals.add(definedOnly(goal) as Goal)
@@ -118,15 +132,18 @@ export const goalsRepo = {
     if (patch.title !== undefined) requireName(patch.title, 'Goal title')
     if (patch.stages) checkStages(patch.stages)
     checkPlanFields(patch)
-    await touch(id, () =>
-      definedOnly({
+    const days = cleanDays(patch.studyDays)
+    await touch(id, () => ({
+      ...definedOnly({
         title: patch.title?.trim(),
         profile: patch.profile && (definedOnly(patch.profile) as GoalProfile),
         stages: patch.stages,
         targetDate: patch.targetDate,
         weeklyMinutes: patch.weeklyMinutes,
       }),
-    )
+      // An emptied set clears the field: any day will do again.
+      ...(patch.studyDays !== undefined ? { studyDays: days } : {}),
+    }))
   },
 
   async setStatus(id: Id, status: GoalStatus) {

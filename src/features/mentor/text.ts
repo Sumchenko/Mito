@@ -57,3 +57,9 @@ export function useMentorText() {
 
 /** Models sometimes slip in markdown emphasis; the UI shows plain text. */
 export const plain = (text: string) => text.replace(/\*\*(.+?)\*\*/g, '$1').replace(/^#+\s*/gm, '')
+
+/** Mon … Sun as the user's locale writes them (1 Jan 2024 was a Monday). */
+export function weekdayNames(lang: string) {
+  const fmt = new Intl.DateTimeFormat(lang, { weekday: 'short' })
+  return Array.from({ length: 7 }, (_, i) => fmt.format(new Date(2024, 0, 1 + i)))
+}

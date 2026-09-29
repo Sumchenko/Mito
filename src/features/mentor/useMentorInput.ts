@@ -5,6 +5,7 @@ import {
   startOfLocalDate,
   toLocalDate,
   useAllTasks,
+  useGoals,
   useNow,
   useProjects,
   useTimeBlocks,
@@ -30,13 +31,14 @@ export function useMentorInput() {
   const blocks = useTimeBlocks(from, to)
   const entries = useTimeEntries(from, to)
   const totals = useTrackedTotals()
+  const goals = useGoals()
 
   const input = useMemo<ContextInput | null>(
     () =>
-      tasks && projects && blocks && entries && totals
-        ? { now, tasks, projects, blocks, entries, trackedTotals: totals }
+      tasks && projects && blocks && entries && totals && goals
+        ? { now, tasks, projects, blocks, entries, trackedTotals: totals, goals }
         : null,
-    [now, tasks, projects, blocks, entries, totals],
+    [now, tasks, projects, blocks, entries, totals, goals],
   )
   const lang: MentorLang = i18n.language === 'en' ? 'en' : 'ru'
   return {

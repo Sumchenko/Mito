@@ -1,11 +1,14 @@
 import {
   ArrowLeftRegular,
+  CalendarCheckmarkRegular,
+  ChatHelpRegular,
   CheckmarkRegular,
   DeleteRegular,
   DismissRegular,
   FlagRegular,
   MoreHorizontalRegular,
   PauseRegular,
+  PersonChatRegular,
   PlayRegular,
 } from '@fluentui/react-icons'
 import { motion } from 'motion/react'
@@ -29,6 +32,7 @@ import {
 } from '@/data'
 import { pageTransition } from '@/design/motion'
 import { formatDay, formatMinutes } from '@/lib/format'
+import { reviewDue } from '@/mentor/coach'
 import { goalProgress, type StageProgress } from '@/mentor/goalProgress'
 import { Button } from '@/ui/Button'
 import { BarChart } from '@/ui/charts/BarChart'
@@ -36,6 +40,9 @@ import { Checkbox } from '@/ui/Checkbox'
 import { Dialog } from '@/ui/Dialog'
 import { Menu } from '@/ui/Menu'
 import f from '@/ui/fields.module.css'
+import { StudyDays } from '../StudyDays'
+import { CoachPanel } from './CoachPanel'
+import { startSession, useCoach } from './coachStore'
 import s from './GoalPage.module.css'
 
 const MIN = 60_000
@@ -84,6 +91,9 @@ function GoalView({ goal }: { goal: Goal }) {
   const own = (tasks ?? []).filter((x) => x.goalId === goal.id)
   const entries = useTaskEntries(own.map((x) => x.id))
   const [removing, setRemoving] = useState(false)
+  const notes = useMentorNotes(goal.id)
+  const inSession = useCoach((st) => st.session?.goalId === goal.id)
+  const due = reviewDue(goal, now)
 
   const progress = goalProgress(goal, tasks ?? [], entries ?? [], now)
   const tint = `var(--tint-${projects?.find((p) => p.id === goal.projectId)?.color ?? 'blue'})`
@@ -113,6 +123,14 @@ function GoalView({ goal }: { goal: Goal }) {
           </p>
         </div>
         <div className={s.actions}>
+          {goal.status === 'active' && (
+            <Button
+              icon={<PersonChatRegular />}
+              onClick={() => startSession({ goalId: goal.id, kind: 'review' })}
+            >
+              {t('mentor.coach.meet')}
+            </Button>
+          )}
           {active && (
             <Button
               icon={goal.status === 'paused' ? <PlayRegular /> : <PauseRegular />}
@@ -136,6 +154,17 @@ function GoalView({ goal }: { goal: Goal }) {
       </header>
 
       <div className={s.layout}>
+        <div className={s.main}>
+          <CoachPanel goal={goal} tasks={tasks ?? []} entries={entries ?? []} notes={notes ?? []} />
+          {due && !inSession && (
+            <div className={s.due}>
+              <CalendarCheckmarkRegular className={s.dueIcon} />
+              <p>{t('mentor.coach.reviewDue')}</p>
+              <Button variant="accent" onClick={() => startSession({ goalId: goal.id, kind: 'review' })}>
+                {t('mentor.coach.begin')}
+              </Button>
+            </div>
+          )}
         <section className={s.path} aria-labelledby="goal-path">
           <h2 id="goal-path" className={s.sectionTitle}>
             {t('mentor.goal.path')}
@@ -154,6 +183,7 @@ function GoalView({ goal }: { goal: Goal }) {
             ))}
           </ol>
         </section>
+        </div>
 
         <aside className={s.side}>
           <Pace goal={goal} progress={progress} minutes={minutes} lang={i18n.language} />
@@ -231,7 +261,14 @@ function Stage({
             ) : (
               <ul className={s.tasks}>
                 {[...open, ...(showDone ? closed : [])].map((task) => (
-                  <TaskRow key={task.id} task={task} today={today} minutes={minutes} day={day} />
+                  <TaskRow
+                    key={task.id}
+                    task={task}
+                    goal={goal}
+                    today={today}
+                    minutes={minutes}
+                    day={day}
+                  />
                 ))}
               </ul>
             )}
@@ -240,7 +277,7 @@ function Stage({
                 <Button
                   variant={finished ? 'accent' : 'standard'}
                   icon={<CheckmarkRegular />}
-                  onClick={() => void goalsRepo.completeStage(goal.id, stage.id)}
+                  onClick={() => startSession({ goalId: goal.id, kind: 'check', stageId: stage.id })}
                 >
                   {t('mentor.goal.complete')}
                 </Button>
@@ -262,16 +299,19 @@ function Stage({
 
 function TaskRow({
   task,
+  goal,
   today,
   minutes,
   day,
 }: {
   task: Task
+  goal: Goal
   today: string
   minutes: (m: number) => string
   day: (d: string) => string
 }) {
   const done = task.status === 'done'
+  const { t } = useTranslation()
   const late = !done && task.plannedDate !== undefined && task.plannedDate < today
   return (
     <li className={s.task} data-done={done}>
@@ -286,10 +326,21 @@ function TaskRow({
         <span className={s.taskTitle}>{task.title}</span>
         {task.notes && !done && <span className={s.taskNotes}>{task.notes}</span>}
       </span>
-      <span className={s.taskMeta} data-late={late}>
-        {[task.plannedDate && day(task.plannedDate), task.estimateMin && minutes(task.estimateMin)]
-          .filter(Boolean)
-          .join(' · ')}
+      <span className={s.taskSide}>
+        <span className={s.taskMeta} data-late={late}>
+          {[task.plannedDate && day(task.plannedDate), task.estimateMin && minutes(task.estimateMin)]
+            .filter(Boolean)
+            .join(' · ')}
+        </span>
+        {!done && goal.status === 'active' && (
+          <button
+            type="button"
+            className={s.stuck}
+            onClick={() => startSession({ goalId: goal.id, kind: 'stuck', taskId: task.id })}
+          >
+            <ChatHelpRegular /> {t('mentor.coach.stuck')}
+          </button>
+        )}
       </span>
     </li>
   )
@@ -345,10 +396,18 @@ const PROFILE = ['level', 'success', 'motivation', 'background', 'schedule', 'st
 function Profile({ goal }: { goal: Goal }) {
   const { t } = useTranslation()
   const rows = PROFILE.filter((k) => goal.profile[k])
-  if (rows.length === 0) return null
   return (
     <section className={s.card}>
       <h2 className={s.sectionTitle}>{t('mentor.goal.profile')}</h2>
+      <div className={s.daysField}>
+        <span>{t('mentor.intake.fields.studyDays')}</span>
+        <StudyDays
+          value={goal.studyDays}
+          label={t('mentor.intake.fields.studyDays')}
+          onChange={(days) => void goalsRepo.update(goal.id, { studyDays: days })}
+        />
+        <p className={s.muted}>{t('mentor.goal.studyDaysHint')}</p>
+      </div>
       <dl className={s.facts}>
         {rows.map((k) => (
           <div key={k}>

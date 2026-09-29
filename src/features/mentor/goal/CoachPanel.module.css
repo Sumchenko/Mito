@@ -1,0 +1,177 @@
+/* A session with the mentor: set apart from the page by the goal's color along the top edge. */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-5);
+  margin-bottom: var(--space-3);
+  scroll-margin-top: var(--space-4);
+  background: var(--bg-card);
+  border: 1px solid color-mix(in srgb, var(--goal) 35%, var(--stroke-card));
+  border-radius: var(--radius-card);
+  box-shadow:
+    inset 0 3px 0 var(--goal),
+    var(--shadow-card);
+}
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.icon {
+  flex: none;
+  font-size: 20px;
+  color: var(--goal);
+}
+.head-text {
+  flex: 1;
+  min-width: 0;
+}
+.title {
+  font-size: 16px;
+  font-weight: 600;
+}
+.subject {
+  color: var(--text-secondary);
+  font-size: var(--text-caption);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.messages {
+  min-height: 120px;
+  max-height: 46vh;
+}
+
+.proposal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--stroke-divider);
+}
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.block-title {
+  font-size: var(--text-caption);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.items {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-2);
+  align-items: start;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--goal) 7%, var(--bg-card));
+}
+.item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.item-text b {
+  font-weight: 600;
+}
+.item-text span {
+  color: var(--text-secondary);
+  font-size: var(--text-caption);
+  line-height: var(--leading-caption);
+}
+.item-text small {
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+.lines {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text-secondary);
+}
+.lines li svg {
+  vertical-align: -2px;
+  color: var(--text-tertiary);
+}
+
+/* The check's verdict: how much was right, and what to go over again. */
+.verdict {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--success) 10%, var(--bg-card));
+}
+.verdict[data-passed='false'] {
+  background: color-mix(in srgb, var(--warning) 12%, var(--bg-card));
+}
+.verdict-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.verdict-head span {
+  color: var(--text-secondary);
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+}
+.meter {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--stroke-divider);
+  overflow: hidden;
+}
+.meter span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--success);
+}
+.verdict[data-passed='false'] .meter span {
+  background: var(--warning);
+}
+.gaps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.gaps li {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--bg-card);
+  font-size: var(--text-caption);
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+@media (max-width: 640px) {
+  .panel {
+    padding: var(--space-4);
+  }
+  .messages {
+    max-height: none;
+  }
+}

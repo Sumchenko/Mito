@@ -1,4 +1,5 @@
 import type {
+  CoachTask,
   IntakeProfile,
   MentorRequest,
   MentorResponse,
@@ -20,6 +21,7 @@ export function mockRespond(req: MentorRequest): MentorResponse {
   const ru = req.lang === 'ru'
   if (req.mode === 'intake') return mockIntake(req.profile, lastUser(req.messages), ru)
   if (req.mode === 'roadmap') return mockRoadmap(req.profile, req.context.today, ru)
+  if (req.mode === 'coach') return mockCoach(req, ru)
   const ctx = req.context
 
   if (req.mode === 'plan') {
@@ -153,5 +155,67 @@ function mockRoadmap(profile: IntakeProfile, today: string, ru: boolean): Mentor
     ],
     tasks,
     notes: profile.level ? [ru ? `Уровень: ${profile.level}` : `Level: ${profile.level}`] : [],
+  }
+}
+
+const plusDays = (today: string, n: number) =>
+  new Date(Date.parse(`${today}T12:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10)
+
+/** Sessions by turn count: review and stuck finish after one answer, the check after three. */
+function mockCoach(req: Extract<MentorRequest, { mode: 'coach' }>, ru: boolean): MentorResponse {
+  const said = req.messages.filter((m) => m.role === 'user').length
+  const tag = ru ? '(тестовый ментор) ' : '(test mentor) '
+  const goal = req.goal
+  const active = goal.stages.find((s) => s.status === 'active') ?? goal.stages[0]!
+  const task = (title: string, day: number, extra: Partial<CoachTask> = {}): CoachTask => ({
+    title,
+    stageId: active.id,
+    estimateMin: 30,
+    plannedDate: plusDays(req.today, day),
+    ...extra,
+  })
+
+  if (req.kind === 'check') {
+    if (said < 3)
+      return { reply: `${tag}${ru ? 'Вопрос' : 'Question'} ${said + 1}/3`, options: [], done: false }
+    const next = goal.stages[goal.stages.indexOf(active) + 1]
+    return {
+      reply: `${tag}${ru ? 'Хорошо, этап пройден.' : 'Good, the stage is done.'}`,
+      options: [],
+      done: true,
+      proposal: {
+        tasks: [task(ru ? 'Первое занятие этапа' : 'First session', 1, { stageId: next?.id ?? active.id })],
+        moves: [],
+        notes: [],
+        check: { score: 0.8, passed: true, gaps: [ru ? 'Повторить основы' : 'Revisit basics'] },
+      },
+    }
+  }
+  if (said === 0) {
+    return {
+      reply: `${tag}${req.kind === 'review' ? (ru ? 'Как прошла неделя?' : 'How did the week go?') : ru ? 'Что именно не получается?' : 'What exactly is hard?'}`,
+      options: ru ? ['Хорошо', 'Не хватило времени'] : ['Well', 'No time'],
+      done: false,
+    }
+  }
+  const slipped = goal.tasks.filter((t) => t.status === 'open' && t.plannedDate && t.plannedDate < req.today)
+  return {
+    reply: `${tag}${ru ? 'Вот план.' : 'Here is the plan.'}`,
+    options: [],
+    done: true,
+    proposal:
+      req.kind === 'review'
+        ? {
+            tasks: [task(ru ? 'Занятие недели' : 'Session of the week', 1), task(ru ? 'Повторение' : 'Review', 3)],
+            moves: slipped.map((t) => ({ taskRef: t.ref, date: plusDays(req.today, 2) })),
+            notes: [],
+          }
+        : {
+            tasks: [1, 2, 3].map((n) =>
+              task(`${ru ? 'Шаг' : 'Step'} ${n}`, 0, { estimateMin: 20, ...(req.taskRef ? { parentRef: req.taskRef } : {}) }),
+            ),
+            moves: [],
+            notes: [ru ? 'Трудно начинать большие задачи' : 'Big tasks are hard to start'],
+          },
   }
 }

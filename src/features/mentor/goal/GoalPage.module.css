@@ -85,6 +85,31 @@
   gap: var(--space-3);
   align-items: start;
 }
+.main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.due {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-3);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--goal) 12%, var(--bg-card));
+  border: 1px solid color-mix(in srgb, var(--goal) 30%, transparent);
+}
+.due p {
+  flex: 1 1 240px;
+  line-height: var(--leading-body);
+}
+.due-icon {
+  flex: none;
+  font-size: 22px;
+  color: var(--goal);
+}
 .side {
   display: flex;
   flex-direction: column;
@@ -259,6 +284,45 @@
   font-size: var(--text-caption);
   line-height: var(--leading-caption);
 }
+.task-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+/* Help with a task is always there, but quiet until the row is in focus. */
+.stuck {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-tertiary);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--dur-fast) linear;
+}
+.task:hover .stuck,
+.task:focus-within .stuck,
+.stuck:focus-visible {
+  opacity: 1;
+}
+.stuck:hover {
+  background: var(--bg-subtle-hover);
+  color: var(--accent-text);
+}
+.stuck:focus-visible {
+  outline: 2px solid var(--stroke-focus-outer);
+}
+@media (hover: none) {
+  .stuck {
+    opacity: 1;
+  }
+}
 .task-meta {
   padding-top: 2px;
   color: var(--text-tertiary);
@@ -273,8 +337,13 @@
   .task {
     grid-template-columns: auto minmax(0, 1fr);
   }
-  .task-meta {
+  .task-side {
     grid-column: 2;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .task-meta {
     padding-top: 0;
   }
 }
@@ -309,6 +378,15 @@
 }
 
 /* ---------- Profile and notes ---------- */
+.days-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.days-field > span {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
 .facts {
   display: flex;
   flex-direction: column;

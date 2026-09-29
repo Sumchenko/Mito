@@ -14,7 +14,8 @@ import type { IntakeProfile } from '@/mentor/protocol'
 import { Button } from '@/ui/Button'
 import f from '@/ui/fields.module.css'
 import m from '../mentor.module.css'
-import { plain, useMentorText } from '../text'
+import { StudyDays } from '../StudyDays'
+import { plain, useMentorText, weekdayNames } from '../text'
 import type { useMentorInput } from '../useMentorInput'
 import { RoadmapPreview } from './RoadmapPreview'
 import { addIntakeMessage, pauseIntake, setIntake, startIntake, useIntake } from './store'
@@ -212,7 +213,8 @@ export function IntakePanel({ mentor }: { mentor: Mentor }) {
 function Understood({ profile, busy }: { profile: IntakeProfile; busy: boolean }) {
   const { t } = useTranslation()
   const { known, total } = intakeProgress(profile)
-  const rows = profileRows(profile, (k) => t(`mentor.intake.fields.${k}`))
+  const { i18n } = useTranslation()
+  const rows = profileRows(profile, (k) => t(`mentor.intake.fields.${k}`), weekdayNames(i18n.language))
   return (
     <aside className={s.side}>
       <h3 className={s.sideTitle}>{t('mentor.intake.understood')}</h3>
@@ -241,15 +243,21 @@ function Understood({ profile, busy }: { profile: IntakeProfile; busy: boolean }
   )
 }
 
-type Field = (typeof TEXT_FIELDS)[number] | 'weeklyHours' | 'targetDate'
+type Field = (typeof TEXT_FIELDS)[number] | 'weeklyHours' | 'targetDate' | 'studyDays'
 
-function profileRows(profile: IntakeProfile, label: (field: Field) => string): [string, string][] {
+function profileRows(
+  profile: IntakeProfile,
+  label: (field: Field) => string,
+  days: readonly string[],
+): [string, string][] {
   const rows: [string, string][] = TEXT_FIELDS.flatMap((k) =>
     profile[k] ? [[label(k), profile[k]!] as [string, string]] : [],
   )
   if (profile.weeklyMinutes)
     rows.push([label('weeklyHours'), String(Math.round(profile.weeklyMinutes / 6) / 10)])
   if (profile.targetDate) rows.push([label('targetDate'), profile.targetDate])
+  if (profile.studyDays?.length)
+    rows.push([label('studyDays'), profile.studyDays.map((d) => days[d]).join(', ')])
   return rows
 }
 
@@ -264,9 +272,9 @@ function ConfirmCard({
   onPlan: () => void
 }) {
   const { t } = useTranslation()
-  const set = (key: keyof IntakeProfile, value: string | number | undefined) => {
+  const set = (key: keyof IntakeProfile, value: string | number | number[] | undefined) => {
     const next: IntakeProfile = { ...profile }
-    if (value === undefined || value === '') delete next[key]
+    if (value === undefined || value === '' || (Array.isArray(value) && !value.length)) delete next[key]
     else Object.assign(next, { [key]: value })
     setIntake({ profile: next })
   }
@@ -291,6 +299,14 @@ function ConfirmCard({
             )}
           </label>
         ))}
+        <div className={`${s.field} ${s.wide}`}>
+          <span>{t('mentor.intake.fields.studyDays')}</span>
+          <StudyDays
+            value={profile.studyDays}
+            label={t('mentor.intake.fields.studyDays')}
+            onChange={(days) => set('studyDays', days)}
+          />
+        </div>
         <div className={s.pair}>
           <label className={s.field}>
             <span>{t('mentor.intake.fields.weeklyHours')}</span>

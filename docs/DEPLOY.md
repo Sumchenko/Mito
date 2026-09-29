@@ -76,9 +76,10 @@ bash /root/setup-server.sh "<публичный ключ выкладки>"
 
 - Установка на сервере — тот же `setup-server.sh` (повторный запуск безопасен): ставит Node 24 и службу.
   Пока службы нет, шаг выкладки ментора пропускается с предупреждением.
-- Цепочка провайдеров: Groq → Gemini Flash → Gemini Flash-Lite; при лимите, перегрузке или ошибке запрос
-  уходит следующему. Порядок — `MENTOR_PROVIDERS` (`groq,gemini,gemini-lite`), модели — `MENTOR_GROQ_MODEL`,
-  `MENTOR_GEMINI_MODEL`, `MENTOR_GEMINI_LITE_MODEL`.
+- Цепочка провайдеров: Groq (gpt-oss-120b) → Groq (gpt-oss-20b, свой минутный лимит) → Gemini Flash →
+  Gemini Flash-Lite; при лимите, перегрузке или ошибке запрос уходит следующему. Порядок —
+  `MENTOR_PROVIDERS` (`groq,groq-fast,gemini,gemini-lite`), модели — `MENTOR_GROQ_MODEL`,
+  `MENTOR_GROQ_FAST_MODEL`, `MENTOR_GEMINI_MODEL`, `MENTOR_GEMINI_LITE_MODEL`.
 - Лимиты (переменные окружения службы): `MENTOR_IP_DAY` (60), `MENTOR_IP_MINUTE` (10),
   `MENTOR_GLOBAL_DAY` (800).
 - Смена ключа (истёк или отозван): новый ключ → секрет GitHub с тем же именем → Actions → Deploy →

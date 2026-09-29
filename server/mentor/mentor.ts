@@ -2,6 +2,7 @@ import {
   contextRefs,
   parseBrief,
   parseChat,
+  parseCoach,
   parseIntake,
   parsePlan,
   parseRoadmap,
@@ -32,6 +33,13 @@ export class MentorFailure extends Error {
 
 type Log = (msg: string) => void
 
+/** A weak model sometimes answers with the user's own words: that is no answer at all. */
+function echoes(response: object, req: MentorRequest) {
+  if (!('reply' in response) || !('messages' in req)) return false
+  const last = [...req.messages].reverse().find((m) => m.role === 'user')?.content.trim()
+  return !!last && (response.reply as string).trim() === last
+}
+
 /**
  * Asks the providers in order. A provider that errors (rate limit, outage, timeout) hands over to
  * the next; one that answers in the wrong shape gets one more chance before handing over.
@@ -47,6 +55,8 @@ export async function runMentor(
         return parseIntake(raw, req.profile, req.about.today)
       case 'roadmap':
         return parseRoadmap(raw)
+      case 'coach':
+        return parseCoach(raw, req.goal, { kind: req.kind, ...(req.taskRef ? { taskRef: req.taskRef } : {}) })
       case 'plan':
         return parsePlan(raw, contextRefs(req.context))
       case 'chat':
@@ -67,7 +77,7 @@ export async function runMentor(
         break
       }
       const parsed = parse(extractJson(text))
-      if (parsed) return { response: parsed, provider: provider.name }
+      if (parsed && !echoes(parsed, req)) return { response: parsed, provider: provider.name }
       log(`${provider.name} answered in the wrong shape (attempt ${attempt + 1})`)
       messages.push({ role: 'assistant', content: text.slice(0, 4000) }, RETRY_MESSAGE)
     }

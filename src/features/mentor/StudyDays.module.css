@@ -1,0 +1,37 @@
+/* Seven equal toggles in a row, like a week on a wall calendar. */
+.days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+.day {
+  height: 32px;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--stroke-control);
+  background: var(--bg-control);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: var(--text-caption);
+  text-transform: capitalize;
+  cursor: pointer;
+  transition:
+    background-color var(--dur-fast) linear,
+    color var(--dur-fast) linear;
+}
+.day:hover {
+  background: var(--bg-control-hover);
+}
+.day[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-weight: 600;
+}
+.day[aria-pressed='true']:hover {
+  background: var(--accent-hover);
+}
+.day:focus-visible {
+  outline: 2px solid var(--stroke-focus-outer);
+  outline-offset: 1px;
+}

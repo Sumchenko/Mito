@@ -87,6 +87,7 @@
   gap: 10px var(--space-3);
 }
 .intake[data-phase='confirm'] .field:has(textarea),
+.intake[data-phase='confirm'] .wide,
 .intake[data-phase='confirm'] .pair {
   grid-column: 1 / -1;
 }
@@ -294,6 +295,15 @@
 .goal-card:focus-visible {
   outline: 2px solid var(--stroke-focus-outer);
   outline-offset: 2px;
+}
+.due-badge {
+  align-self: flex-start;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--accent-subtle);
+  color: var(--accent-text);
+  font-size: 12px;
+  font-weight: 600;
 }
 .goal-title {
   font-size: 16px;

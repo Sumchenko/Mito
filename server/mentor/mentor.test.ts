@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
   parseChat,
+  parseCoach,
   parseIntake,
   parsePlan,
   parseRequest,
   parseRoadmap,
   readableRefs,
+  type CoachResponse,
+  type GoalContext,
   type IntakeResponse,
   type MentorContext,
   type MentorRequest,
@@ -224,6 +227,7 @@ describe('learning goals', () => {
       done: false,
     })
     expect(parseIntake({ options: [] })).toBeNull()
+    expect(parseIntake({ reply: 'ok', profile: { studyDays: [5, 0, 9, 0, 'x'] } })?.profile.studyDays).toEqual([0, 5])
     const past = parseIntake({ reply: 'ok', profile: { targetDate: '2026-06-01' } }, {}, '2026-09-27')
     expect(past?.profile.targetDate).toBeUndefined()
   })
@@ -281,6 +285,92 @@ describe('learning goals', () => {
   })
 })
 
+describe('coaching sessions', () => {
+  const goal: GoalContext = {
+    title: 'Python',
+    profile: { subject: 'Python' },
+    weeklyMinutes: 300,
+    stages: [
+      { id: 's1', title: 'Basics', outcome: 'Scripts', status: 'active' },
+      { id: 's2', title: 'pandas', outcome: 'CSV', status: 'upcoming' },
+    ],
+    tasks: [
+      { ref: 't1', title: 'Loops', stageId: 's1', status: 'open', plannedDate: '2026-09-25', trackedMin: 0 },
+      { ref: 't2', title: 'Syntax', stageId: 's1', status: 'done', trackedMin: 50 },
+    ],
+    weeks: [{ start: '2026-09-21', minutes: 120 }],
+    notes: [],
+  }
+  const coach = (
+    kind: 'review' | 'stuck' | 'check',
+    messages: { role: 'user' | 'assistant'; content: string }[] = [],
+  ) =>
+    ({ mode: 'coach', lang: 'ru', kind, today: '2026-09-27', goal, messages, ...(kind === 'stuck' ? { taskRef: 't1' } : {}), ...(kind === 'check' ? { stageId: 's1' } : {}) }) as MentorRequest
+
+  it('accepts a session the mentor opens', () => {
+    expect(parseRequest(coach('review'))).toMatchObject({ mode: 'coach', kind: 'review', messages: [] })
+    expect(parseRequest({ ...coach('review'), kind: 'party' })).toBeNull()
+    expect(parseRequest({ ...coach('review'), goal: { ...goal, stages: [] } })).toBeNull()
+  })
+
+  it('keeps only a proposal that points inside the goal, once done', () => {
+    const raw = {
+      reply: 'Вот план',
+      done: true,
+      proposal: {
+        tasks: [
+          { title: 'Step', stageId: 's9', parentRef: 't1', estimateMin: 20 },
+          { title: 'Orphan step', parentRef: 't9' },
+          { stageId: 's1' },
+        ],
+        moves: [
+          { taskRef: 't1', date: '2026-09-29' },
+          { taskRef: 't2', date: '2026-09-29' },
+          { taskRef: 't9', date: '2026-09-29' },
+        ],
+        notes: ['Hard to start'],
+        check: { score: 80, passed: true, gaps: ['loops', 3] },
+      },
+    }
+    expect(parseCoach(raw, goal, { kind: 'stuck', taskRef: 't1' })?.proposal).toEqual({
+      tasks: [
+        { title: 'Step', stageId: 's1', parentRef: 't1', estimateMin: 20 },
+        { title: 'Orphan step', stageId: 's1', parentRef: 't1' },
+      ],
+      moves: [{ taskRef: 't1', date: '2026-09-29' }],
+      notes: ['Hard to start'],
+    })
+    // Only a check carries a verdict (a score of 80 reads as 80%).
+    expect(parseCoach(raw, goal, { kind: 'check' })?.proposal?.check).toEqual({
+      score: 0.8,
+      passed: true,
+      gaps: ['loops'],
+    })
+    expect(parseCoach({ ...raw, done: false }, goal)?.proposal).toBeUndefined()
+    // A check-in adds standalone tasks; a check offers no quick answers.
+    expect(parseCoach(raw, goal, { kind: 'review' })?.proposal?.tasks[0]?.parentRef).toBeUndefined()
+    expect(parseCoach({ ...raw, done: false, options: ['SELECT 1'] }, goal, { kind: 'check' })?.options).toEqual([])
+  })
+
+  it('opens every session with a user turn and names the task', () => {
+    const msgs = buildMessages(coach('stuck'))
+    expect(msgs[1]).toEqual({ role: 'user', content: 'Start the session.' })
+    expect(msgs[0]?.content).toContain('TASK: t1 "Loops"')
+  })
+
+  it('walks the mock through a check', async () => {
+    const q = (await runMentor(coach('check'), [mockProvider])).response as CoachResponse
+    expect(q.done).toBe(false)
+    const answers = [1, 2, 3].flatMap((n) => [
+      { role: 'assistant' as const, content: `Q${n}` },
+      { role: 'user' as const, content: `A${n}` },
+    ])
+    const end = (await runMentor(coach('check', answers), [mockProvider])).response as CoachResponse
+    expect(end.proposal?.check?.passed).toBe(true)
+    expect(end.proposal?.tasks[0]?.stageId).toBe('s2')
+  })
+})
+
 describe('mock mentor', () => {
   it('plans around existing blocks, from now on, by deadline', () => {
     const res = mockRespond(plan) as { blocks: { taskRef?: string; start: string; end: string }[] }
@@ -321,10 +411,10 @@ describe('limits', () => {
 
 describe('config', () => {
   it('orders providers with keys and falls back to the mock only in development', () => {
-    expect(loadConfig({ MENTOR_GROQ_KEY: 'g' }).providers.map((p) => p.name)).toEqual(['groq'])
+    expect(loadConfig({ MENTOR_GROQ_KEY: 'g' }).providers.map((p) => p.name)).toEqual(['groq', 'groq-fast'])
     expect(
       loadConfig({ MENTOR_GEMINI_KEY: 'a', MENTOR_GROQ_KEY: 'b' }).providers.map((p) => p.name),
-    ).toEqual(['groq', 'gemini', 'gemini-lite'])
+    ).toEqual(['groq', 'groq-fast', 'gemini', 'gemini-lite'])
     expect(loadConfig({}).providers.map((p) => p.name)).toEqual(['mock'])
     expect(loadConfig({ NODE_ENV: 'production' }).providers).toEqual([])
   })

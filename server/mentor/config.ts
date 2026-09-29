@@ -33,7 +33,8 @@ const int = (v: string | undefined, fallback: number) => {
 
 /**
  * Providers in order of preference, only those with a key. Groq first: fastest and the best plans
- * in our tests, but only ~8k tokens a minute (about two requests). Then Gemini Flash, which the
+ * in our tests, but only ~8k tokens a minute (about two requests); its smaller model has a quota of
+ * its own, so it takes the overflow. Then Gemini Flash, which the
  * free tier often turns away with "high demand", then Gemini Flash-Lite: its own quota, rarely
  * overloaded. All speak the OpenAI chat-completions protocol, so adding another is one entry here.
  */
@@ -45,6 +46,13 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
       apiKey: env.MENTOR_GEMINI_KEY ?? '',
       // The alias follows the current stable Flash: pinned versions get retired for new keys.
       model: env.MENTOR_GEMINI_MODEL || 'gemini-flash-latest',
+    },
+    {
+      // Same key, its own per-minute token quota: the next stop when the big model is saturated.
+      name: 'groq-fast',
+      baseUrl: 'https://api.groq.com/openai/v1',
+      apiKey: env.MENTOR_GROQ_KEY ?? '',
+      model: env.MENTOR_GROQ_FAST_MODEL || 'openai/gpt-oss-20b',
     },
     {
       name: 'gemini-lite',
@@ -59,7 +67,7 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
       model: env.MENTOR_GROQ_MODEL || 'openai/gpt-oss-120b',
     },
   ]
-  const order = (env.MENTOR_PROVIDERS || 'groq,gemini,gemini-lite').split(',').map((s) => s.trim())
+  const order = (env.MENTOR_PROVIDERS || 'groq,groq-fast,gemini,gemini-lite').split(',').map((s) => s.trim())
   const production = env.NODE_ENV === 'production'
   const providers = order.flatMap((name) => {
     if (name === 'mock')

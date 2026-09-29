@@ -1,7 +1,8 @@
 import { AddRegular, ArrowRightRegular } from '@fluentui/react-icons'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
-import { useAllTasks, useGoals, type Goal, type Task } from '@/data'
+import { useAllTasks, useGoals, useNow, type Goal, type Task } from '@/data'
+import { reviewDue } from '@/mentor/coach'
 import { Button } from '@/ui/Button'
 import m from '../mentor.module.css'
 import { GoalInvite } from './GoalInvite'
@@ -16,6 +17,7 @@ export function GoalsSection() {
   const { t } = useTranslation()
   const goals = useGoals()
   const tasks = useAllTasks()
+  const now = useNow(60_000)
   const paused = useIntake((st) => !st.active && st.messages.length > 0)
   const pausedTitle = useIntake((st) => st.profile.title ?? st.profile.subject)
   if (!goals) return null
@@ -45,7 +47,7 @@ export function GoalsSection() {
       {resume}
       <div className={s.goalGrid}>
         {current.map((g) => (
-          <GoalCard key={g.id} goal={g} tasks={tasks ?? []} />
+          <GoalCard key={g.id} goal={g} tasks={tasks ?? []} now={now} />
         ))}
         {!paused && (
           <button
@@ -61,7 +63,7 @@ export function GoalsSection() {
   )
 }
 
-function GoalCard({ goal, tasks }: { goal: Goal; tasks: readonly Task[] }) {
+function GoalCard({ goal, tasks, now }: { goal: Goal; tasks: readonly Task[]; now: number }) {
   const { t } = useTranslation()
   const index = goal.stages.findIndex((st) => st.status === 'active')
   const stage = goal.stages[index]
@@ -71,6 +73,7 @@ function GoalCard({ goal, tasks }: { goal: Goal; tasks: readonly Task[] }) {
   return (
     <Link to={`/mentor/goal/${goal.id}`} className={s.goalCard}>
       <h3 className={s.goalTitle}>{goal.title}</h3>
+      {reviewDue(goal, now) && <span className={s.dueBadge}>{t('mentor.coach.reviewDueShort')}</span>}
       <div className={s.stageBar} aria-hidden>
         {goal.stages.map((st) => (
           <span key={st.id} data-status={st.status} />

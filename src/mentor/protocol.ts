@@ -37,6 +37,8 @@ export interface MentorContext {
     peak: string | null
     projects: { name: string; minutes: number }[]
   }
+  /** Learning goals in progress: the brief mentions slippage. */
+  goals?: GoalSignal[]
 }
 
 export interface ContextTask {
@@ -89,6 +91,8 @@ export interface IntakeProfile {
   constraints?: string
   targetDate?: string
   weeklyMinutes?: number
+  /** Weekdays the user can study on, 0 = Monday … 6 = Sunday. */
+  studyDays?: number[]
 }
 
 /**
@@ -105,6 +109,54 @@ export interface IntakeAbout {
   goals: string[]
 }
 
+/** How a learning goal is going, for the brief: the mentor mentions slippage in one sentence. */
+export interface GoalSignal {
+  title: string
+  stage: string
+  weekMinutes: number
+  weeklyMinutes?: number
+  /** Days since the last tracked session on the goal; null when there was none yet. */
+  idleDays: number | null
+  /** Open tasks whose planned day has passed. */
+  slipped: number
+  reviewDue: boolean
+}
+
+export type CoachKind = 'review' | 'stuck' | 'check'
+
+/** What the mentor sees of one learning goal in a coaching session. */
+export interface GoalContext {
+  title: string
+  profile: IntakeProfile
+  weeklyMinutes?: number
+  targetDate?: string
+  stages: {
+    id: string
+    title: string
+    outcome: string
+    weeks?: number
+    status: 'upcoming' | 'active' | 'done'
+    checks?: { score: number; passed: boolean; gaps: string[] }[]
+  }[]
+  /** Tasks of the goal, referred to by short refs ("t3"). */
+  tasks: {
+    ref: string
+    title: string
+    stageId: string
+    status: 'open' | 'done'
+    plannedDate?: string
+    estimateMin?: number
+    trackedMin: number
+    notes?: string
+    parent?: string
+  }[]
+  /** Minutes per week, oldest first, this week last. */
+  weeks: { start: string; minutes: number }[]
+  lastReview?: string
+  /** The mentor's notes about the user. */
+  notes: string[]
+}
+
 export type MentorRequest =
   | { mode: 'plan'; lang: MentorLang; context: MentorContext; date: string; note?: string }
   | { mode: 'chat'; lang: MentorLang; context: MentorContext; messages: ChatMessage[] }
@@ -114,6 +166,19 @@ export type MentorRequest =
       lang: MentorLang
       about: IntakeAbout
       profile: IntakeProfile
+      messages: ChatMessage[]
+    }
+  | {
+      mode: 'coach'
+      lang: MentorLang
+      kind: CoachKind
+      today: string
+      goal: GoalContext
+      /** The task the user is stuck on ("stuck"). */
+      taskRef?: string
+      /** The stage being checked ("check"). */
+      stageId?: string
+      /** Empty on the first turn: the mentor opens the session. */
       messages: ChatMessage[]
     }
   | {
@@ -134,6 +199,26 @@ export interface IntakeResponse {
   profile: IntakeProfile
   /** Enough is known to propose a plan. */
   done: boolean
+}
+
+/** A new task from a session; with parentRef it becomes a step (subtask) of that task. */
+export type CoachTask = RoadmapTask & { parentRef?: string }
+
+/** What a coaching session ends with; nothing changes until the user accepts it. */
+export interface CoachProposal {
+  tasks: CoachTask[]
+  /** Open tasks moved to another day. */
+  moves: { taskRef: string; date: string }[]
+  notes: string[]
+  /** The knowledge check's verdict ("check"). */
+  check?: { score: number; passed: boolean; gaps: string[] }
+}
+
+export interface CoachResponse {
+  reply: string
+  options: string[]
+  done: boolean
+  proposal?: CoachProposal
 }
 
 export interface RoadmapStage {
@@ -211,6 +296,7 @@ export type MentorResponse =
   | BriefResponse
   | IntakeResponse
   | RoadmapResponse
+  | CoachResponse
 
 export type MentorErrorCode = 'rate_limited' | 'busy' | 'unavailable' | 'bad_request' | 'failed'
 export interface MentorError {
@@ -349,6 +435,10 @@ export function cleanProfile(raw: unknown): IntakeProfile {
   if (typeof raw.targetDate === 'string' && DATE.test(raw.targetDate)) out.targetDate = raw.targetDate
   const weekly = Number(raw.weeklyMinutes)
   if (Number.isFinite(weekly) && weekly >= 15 && weekly <= 6000) out.weeklyMinutes = Math.round(weekly)
+  if (Array.isArray(raw.studyDays)) {
+    const days = [...new Set(raw.studyDays.filter((d): d is number => Number.isInteger(d) && d >= 0 && d <= 6))]
+    if (days.length) out.studyDays = days.sort()
+  }
   return out
 }
 
@@ -421,6 +511,83 @@ export function parseRoadmap(raw: unknown): RoadmapResponse | null {
   }
 }
 
+const clamp01 = (x: number) => Math.min(1, Math.max(0, x))
+
+/**
+ * The valid part of a coaching answer. Tasks may only point at stages and tasks of this goal;
+ * a proposal counts only once the session is done.
+ */
+export function parseCoach(
+  raw: unknown,
+  goal: GoalContext,
+  session: { kind: CoachKind; taskRef?: string } = { kind: 'review' },
+): CoachResponse | null {
+  if (!isObj(raw) || !str(raw.reply, 4000)) return null
+  // A check never offers quick answers: they would give the answer away.
+  const options = (session.kind === 'check' ? [] : Array.isArray(raw.options) ? raw.options : [])
+    .filter((o): o is string => str(o, 80))
+    .map((o) => o.trim())
+  const done = raw.done === true
+  const out: CoachResponse = { reply: (raw.reply as string).trim(), options: [...new Set(options)].slice(0, 6), done }
+  const p = raw.proposal
+  if (!done || !isObj(p)) return out
+
+  const stages = new Set(goal.stages.map((s) => s.id))
+  const refs = new Map(goal.tasks.map((t) => [t.ref, t]))
+  const fallbackStage = goal.stages.find((s) => s.status === 'active')?.id ?? goal.stages[0]?.id ?? 's1'
+  const tasks: CoachTask[] = []
+  for (const t of Array.isArray(p.tasks) ? p.tasks : []) {
+    if (!isObj(t) || !str(t.title, 200)) continue
+    const estimate = Number(t.estimateMin)
+    // Steps belong to the task a "stuck" session is about; elsewhere new tasks stand on their own.
+    const parent =
+      session.kind !== 'stuck'
+        ? undefined
+        : typeof t.parentRef === 'string' && refs.has(t.parentRef)
+          ? t.parentRef
+          : session.taskRef && refs.has(session.taskRef)
+            ? session.taskRef
+            : undefined
+    tasks.push({
+      title: (t.title as string).trim(),
+      stageId: typeof t.stageId === 'string' && stages.has(t.stageId) ? t.stageId : fallbackStage,
+      ...(Number.isFinite(estimate) && estimate >= 5 && estimate <= 600 ? { estimateMin: Math.round(estimate) } : {}),
+      ...(typeof t.plannedDate === 'string' && DATE.test(t.plannedDate) ? { plannedDate: t.plannedDate } : {}),
+      ...(str(t.notes, 1000) ? { notes: (t.notes as string).trim() } : {}),
+      ...(parent ? { parentRef: parent } : {}),
+    })
+  }
+  const moves = (Array.isArray(p.moves) ? p.moves : []).flatMap((m) =>
+    isObj(m) &&
+    typeof m.taskRef === 'string' &&
+    refs.get(m.taskRef)?.status === 'open' &&
+    typeof m.date === 'string' &&
+    DATE.test(m.date)
+      ? [{ taskRef: m.taskRef, date: m.date }]
+      : [],
+  )
+  const notes = (Array.isArray(p.notes) ? p.notes : [])
+    .filter((n): n is string => str(n, 300))
+    .map((n) => n.trim())
+  const c = p.check
+  const score = isObj(c) ? Number(c.score) : NaN
+  out.proposal = {
+    tasks: tasks.slice(0, 16),
+    moves: moves.slice(0, 16),
+    notes: notes.slice(0, 5),
+    ...(session.kind === 'check' && isObj(c) && Number.isFinite(score)
+      ? {
+          check: {
+            score: clamp01(score > 1 ? score / 100 : score),
+            passed: c.passed === true,
+            gaps: (Array.isArray(c.gaps) ? c.gaps : []).filter((g): g is string => str(g, 200)).slice(0, 6),
+          },
+        }
+      : {}),
+  }
+  return out
+}
+
 /** Every ref the context exposes: the only ones a response may use. */
 export function contextRefs(ctx: MentorContext) {
   return new Set([...ctx.tasks.map((t) => t.ref), ...ctx.blocks.map((b) => b.ref)])
@@ -483,6 +650,38 @@ export function parseRequest(raw: unknown): MentorRequest | null {
         goals: ((about.goals as unknown[] | undefined) ?? []).filter((g): g is string => str(g, 200)).slice(0, 20),
       },
       profile: cleanProfile(raw.profile),
+      messages,
+    }
+  }
+  if (raw.mode === 'coach') {
+    const goal = raw.goal
+    const kinds: CoachKind[] = ['review', 'stuck', 'check']
+    // The mentor opens a session, so an empty conversation is fine here.
+    const messages = Array.isArray(raw.messages) && raw.messages.length === 0 ? [] : parseMessages(raw.messages)
+    if (
+      !messages ||
+      !kinds.includes(raw.kind as CoachKind) ||
+      !str(raw.today, 20) ||
+      !isObj(goal) ||
+      !str(goal.title, 200) ||
+      !Array.isArray(goal.stages) ||
+      goal.stages.length === 0 ||
+      goal.stages.length > 12 ||
+      !Array.isArray(goal.tasks) ||
+      goal.tasks.length > 120 ||
+      !Array.isArray(goal.weeks) ||
+      !Array.isArray(goal.notes)
+    ) {
+      return null
+    }
+    return {
+      mode: 'coach',
+      lang: raw.lang,
+      kind: raw.kind as CoachKind,
+      today: raw.today as string,
+      goal: { ...(goal as unknown as GoalContext), profile: cleanProfile(goal.profile) },
+      ...(str(raw.taskRef, 10) ? { taskRef: raw.taskRef as string } : {}),
+      ...(str(raw.stageId, 20) ? { stageId: raw.stageId as string } : {}),
       messages,
     }
   }

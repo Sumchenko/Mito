@@ -112,6 +112,8 @@ export interface Goal extends SyncMeta {
   projectId?: Id
   targetDate?: LocalDate
   weeklyMinutes?: number
+  /** Weekdays the user studies on, 0 = Monday … 6 = Sunday. Planned days are moved onto them. */
+  studyDays?: number[]
   /** Last weekly meeting; the next one is due a week later. */
   lastReviewAt?: Timestamp
   order: number

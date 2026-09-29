@@ -1,5 +1,7 @@
 import {
+  addDays,
   goalsRepo,
+  startOfLocalDate,
   mentorNotesRepo,
   tasksRepo,
   type Goal,
@@ -14,6 +16,16 @@ const ESSENTIAL = ['subject', 'level', 'success', 'weeklyMinutes'] as const
 export function intakeProgress(profile: IntakeProfile) {
   const known = ESSENTIAL.filter((k) => profile[k] !== undefined).length
   return { known, total: ESSENTIAL.length }
+}
+
+/** The day itself when the user studies on it, otherwise the next day they do. */
+export function onStudyDay(date: LocalDate, days?: readonly number[]): LocalDate {
+  if (!days?.length) return date
+  for (let i = 0; i < 7; i++) {
+    const day = addDays(date, i)
+    if (days.includes((new Date(startOfLocalDate(day)).getDay() + 6) % 7)) return day
+  }
+  return date
 }
 
 /** The stored profile of a goal: the intake's text fields, without the plan's numbers. */
@@ -41,6 +53,7 @@ export async function startGoal(
     stages: roadmap.stages,
     ...(profile.targetDate ? { targetDate: profile.targetDate as LocalDate } : {}),
     ...(profile.weeklyMinutes ? { weeklyMinutes: profile.weeklyMinutes } : {}),
+    ...(profile.studyDays?.length ? { studyDays: profile.studyDays } : {}),
   })
   for (const [i, task] of roadmap.tasks.entries()) {
     if (!picked[i]) continue
@@ -52,7 +65,7 @@ export async function startGoal(
       ...(task.notes ? { notes: task.notes } : {}),
       ...(task.estimateMin ? { estimateMin: task.estimateMin } : {}),
       ...(task.plannedDate && task.plannedDate >= today
-        ? { plannedDate: task.plannedDate as LocalDate }
+        ? { plannedDate: onStudyDay(task.plannedDate as LocalDate, profile.studyDays) }
         : {}),
     })
   }
