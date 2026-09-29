@@ -1,5 +1,6 @@
 import { createBrowserRouter, Navigate } from 'react-router'
 import { CalendarPage } from '@/features/calendar/CalendarPage'
+import { GoalPage } from '@/features/mentor/goal/GoalPage'
 import { MentorPage } from '@/features/mentor/MentorPage'
 import { StatsPage } from '@/features/stats/StatsPage'
 import { SettingsPage } from '@/features/settings/SettingsPage'
@@ -23,6 +24,7 @@ export const router = createBrowserRouter([
       { path: 'auth/confirm', element: <Navigate to="/settings" replace /> },
       { path: 'stats', element: <StatsPage /> },
       { path: 'mentor', element: <MentorPage /> },
+      { path: 'mentor/goal/:goalId', element: <GoalPage /> },
       { path: 'settings', element: <SettingsPage /> },
     ],
   },

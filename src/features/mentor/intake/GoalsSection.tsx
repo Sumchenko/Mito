@@ -1,5 +1,6 @@
 import { AddRegular, ArrowRightRegular } from '@fluentui/react-icons'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router'
 import { useAllTasks, useGoals, type Goal, type Task } from '@/data'
 import { Button } from '@/ui/Button'
 import m from '../mentor.module.css'
@@ -68,7 +69,7 @@ function GoalCard({ goal, tasks }: { goal: Goal; tasks: readonly Task[] }) {
     .filter((x) => x.goalId === goal.id && x.status === 'open' && (!stage || x.stageId === stage.id))
     .sort((a, b) => (a.plannedDate ?? '9999').localeCompare(b.plannedDate ?? '9999'))[0]
   return (
-    <article className={s.goalCard}>
+    <Link to={`/mentor/goal/${goal.id}`} className={s.goalCard}>
       <h3 className={s.goalTitle}>{goal.title}</h3>
       <div className={s.stageBar} aria-hidden>
         {goal.stages.map((st) => (
@@ -86,6 +87,6 @@ function GoalCard({ goal, tasks }: { goal: Goal; tasks: readonly Task[] }) {
           ? ` · ${t('mentor.goals.weekly', { hours: Math.round(goal.weeklyMinutes / 6) / 10 })}`
           : ''}
       </p>
-    </article>
+    </Link>
   )
 }
