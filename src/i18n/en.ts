@@ -429,6 +429,8 @@ export const en: Messages = {
     actions: {
       create: 'Create task “{{title}}”',
       schedule: 'Schedule “{{title}}” · {{when}}',
+      break: 'Break · {{when}}',
+      breakNamed: 'Break “{{title}}” · {{when}}',
       move: 'Move “{{title}}” · {{when}}',
       planDate: 'Plan “{{title}}” for {{date}}',
       due: 'due {{date}}',

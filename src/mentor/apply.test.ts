@@ -12,11 +12,13 @@ describe('inTimeOrder', () => {
       { type: 'move_block', blockRef: 'b1', date: '2026-10-06', start: '18:00', end: '19:00' },
       { type: 'create_task', title: 'Due', dueDate: '2026-10-09' },
       { type: 'create_task', title: 'Also someday' },
+      { type: 'create_task', title: 'Timed', plannedDate: '2026-10-07', start: '12:00', end: '13:00' },
     ]
     expect(inTimeOrder(actions).map((a) => ('title' in a && a.title) || ('taskRef' in a && a.taskRef) || a.type)).toEqual([
       'move_block',
       't3',
       't2',
+      'Timed',
       't1',
       'Due',
       'Someday',

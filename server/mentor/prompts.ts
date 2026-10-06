@@ -49,12 +49,17 @@ move something — or it would clearly help — propose actions. Actions are onl
 applies them with a button, so say "I suggest…", never "I have done…".
 Before create_task, look for a matching task in the data: if one exists, propose plan_date or
 schedule for it instead of a duplicate. A deadline ("by Friday") goes to dueDate.
+A NEW task that needs a time on the calendar: ONE create_task with plannedDate, start and end —
+never an extra schedule for it (that would make a separate event with the same name).
+Breaks between tasks (when asked, or after about 90 minutes of focus) are real blocks: a schedule
+with "title" and "kind": "break" — never just a gap. Meetings, calls, appointments: "kind": "event".
 Action types:
-- {"type": "create_task", "title": "…", "project": "existing project name (optional)", "plannedDate": "YYYY-MM-DD (optional)", "dueDate": "YYYY-MM-DD (optional)", "estimateMin": 30, "priority": 0-3}
-- {"type": "schedule", "taskRef": "t3" (or "title": "…" for a non-task), "date": "YYYY-MM-DD", "start": "HH:MM", "end": "HH:MM"}
+- {"type": "create_task", "title": "…", "project": "existing project name (optional)", "plannedDate": "YYYY-MM-DD (optional)", "start": "HH:MM (optional, needs plannedDate)", "end": "HH:MM (optional)", "dueDate": "YYYY-MM-DD (optional)", "estimateMin": 30, "priority": 0-3}
+- {"type": "schedule", "taskRef": "t3", "date": "YYYY-MM-DD", "start": "HH:MM", "end": "HH:MM"} — an existing task
+- {"type": "schedule", "title": "…", "kind": "break" | "event", "date": "YYYY-MM-DD", "start": "HH:MM", "end": "HH:MM"} — not a task
 - {"type": "move_block", "blockRef": "b7", "date": "YYYY-MM-DD", "start": "HH:MM", "end": "HH:MM"}
 - {"type": "plan_date", "taskRef": "t3", "date": "YYYY-MM-DD"}
-Never overlap existing blocks when scheduling. At most 8 actions.
+Never overlap existing blocks when scheduling. At most 12 actions.
 Answer with JSON only: {"reply": "your message", "actions": []}`
 
 const BRIEF = {

@@ -274,8 +274,20 @@ export type MentorAction =
       dueDate?: string
       estimateMin?: number
       priority?: number
+      /** A new task can go straight onto the calendar: a block on plannedDate. */
+      start?: string
+      end?: string
     }
-  | { type: 'schedule'; taskRef?: string; title?: string; date: string; start: string; end: string }
+  | {
+      type: 'schedule'
+      taskRef?: string
+      title?: string
+      /** For a titled block (not a task): a break or an event. */
+      kind?: 'break' | 'event'
+      date: string
+      start: string
+      end: string
+    }
   | { type: 'move_block'; blockRef: string; date: string; start: string; end: string }
   | { type: 'plan_date'; taskRef: string; date: string }
 
@@ -372,6 +384,9 @@ export function parseChat(raw: unknown, refs: ReadonlySet<string>): ChatResponse
         ...(typeof a.priority === 'number' && [0, 1, 2, 3].includes(a.priority)
           ? { priority: a.priority }
           : {}),
+        ...(validSpan(a.plannedDate, a.start, a.end)
+          ? { start: a.start as string, end: a.end as string }
+          : {}),
       })
     } else if (
       a.type === 'schedule' &&
@@ -382,7 +397,10 @@ export function parseChat(raw: unknown, refs: ReadonlySet<string>): ChatResponse
         type: 'schedule',
         ...(known(a.taskRef)
           ? { taskRef: a.taskRef as string }
-          : { title: (a.title as string).trim() }),
+          : {
+              title: (a.title as string).trim(),
+              kind: a.kind === 'break' ? ('break' as const) : ('event' as const),
+            }),
         date: a.date as string,
         start: a.start as string,
         end: a.end as string,
@@ -404,8 +422,32 @@ export function parseChat(raw: unknown, refs: ReadonlySet<string>): ChatResponse
       actions.push({ type: 'plan_date', taskRef: a.taskRef as string, date: a.date })
     }
   }
-  return { reply: (raw.reply as string).trim(), actions: actions.slice(0, 8) }
+  return { reply: (raw.reply as string).trim(), actions: joinNewTaskBlocks(actions).slice(0, 12) }
 }
+
+const sameTitle = (a: string, b: string) =>
+  a.toLowerCase().replace(/ё/g, 'е').trim() === b.toLowerCase().replace(/ё/g, 'е').trim()
+
+/**
+ * A task proposed in the same answer has no ref yet, so models schedule it by title — which
+ * would add an event twin next to the new task. Such a block becomes the new task's time instead.
+ */
+function joinNewTaskBlocks(actions: MentorAction[]): MentorAction[] {
+  const out = [...actions]
+  for (let i = out.length - 1; i >= 0; i--) {
+    const a = out[i]!
+    if (a.type !== 'schedule' || !a.title || a.kind === 'break') continue
+    const j = out.findIndex(
+      (x) => x.type === 'create_task' && !x.start && sameTitle(x.title, a.title!),
+    )
+    if (j < 0) continue
+    out[j] = { ...(out[j] as CreateTask), plannedDate: a.date, start: a.start, end: a.end }
+    out.splice(i, 1)
+  }
+  return out
+}
+
+type CreateTask = Extract<MentorAction, { type: 'create_task' }>
 
 export function parseBrief(raw: unknown, refs: ReadonlySet<string>): BriefResponse | null {
   if (!isObj(raw) || !str(raw.text, 4000)) return null

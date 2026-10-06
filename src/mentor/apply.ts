@@ -13,7 +13,7 @@ export function atTime(date: string, time: string) {
 function actionWhen(a: MentorAction): string {
   switch (a.type) {
     case 'create_task':
-      return a.plannedDate ?? a.dueDate ?? ''
+      return a.start ? `${a.plannedDate}T${a.start}` : (a.plannedDate ?? a.dueDate ?? '')
     case 'schedule':
     case 'move_block':
       return `${a.date}T${a.start}`
@@ -76,7 +76,7 @@ export async function applyAction(
       const project = action.project
         ? projects.find((p) => norm(p.name) === norm(action.project!))
         : undefined
-      return tasksRepo.create({
+      const task = await tasksRepo.create({
         title: action.title,
         ...(project ? { projectId: project.id } : {}),
         ...(action.plannedDate ? { plannedDate: action.plannedDate as LocalDate } : {}),
@@ -84,10 +84,19 @@ export async function applyAction(
         ...(action.estimateMin ? { estimateMin: action.estimateMin } : {}),
         ...(action.priority !== undefined ? { priority: action.priority as 0 | 1 | 2 | 3 } : {}),
       })
+      if (action.plannedDate && action.start && action.end)
+        await timeBlocksRepo.create({
+          taskId: task.id,
+          start: atTime(action.plannedDate, action.start),
+          end: atTime(action.plannedDate, action.end),
+          origin: 'mentor',
+        })
+      return task
     }
     case 'schedule':
+      // Older stored answers have no kind: a titled block from chat was an event then.
       return applyPlanBlock(
-        { ...action, ...(action.title ? { kind: 'event' as const } : {}) },
+        { ...action, ...(action.title ? { kind: action.kind ?? 'event' } : {}) },
         refs,
       )
     case 'move_block': {

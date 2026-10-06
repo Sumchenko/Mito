@@ -134,6 +134,48 @@ describe('protocol', () => {
     expect(out?.actions).toEqual([{ type: 'create_task', title: 'X', dueDate: '2026-10-02' }])
   })
 
+  it('keeps breaks as breaks and other titled blocks as events', () => {
+    const span = { date: '2026-10-07', start: '10:00', end: '10:15' }
+    const out = parseChat(
+      {
+        reply: 'ok',
+        actions: [
+          { type: 'schedule', title: 'Перерыв', kind: 'break', ...span },
+          { type: 'schedule', title: 'Call with Anna', ...span },
+          { type: 'schedule', title: 'Walk', kind: 'nap', ...span },
+        ],
+      },
+      refs,
+    )
+    expect(out?.actions).toEqual([
+      { type: 'schedule', title: 'Перерыв', kind: 'break', ...span },
+      { type: 'schedule', title: 'Call with Anna', kind: 'event', ...span },
+      { type: 'schedule', title: 'Walk', kind: 'event', ...span },
+    ])
+  })
+
+  it('gives a new task its time instead of an event twin', () => {
+    const out = parseChat(
+      {
+        reply: 'ok',
+        actions: [
+          { type: 'schedule', title: 'отчёт ', date: '2026-10-07', start: '09:00', end: '10:30' },
+          { type: 'create_task', title: 'Отчет', plannedDate: '2026-10-08' },
+          { type: 'create_task', title: 'Email', plannedDate: '2026-10-07', start: '11:00', end: '11:30' },
+          { type: 'create_task', title: 'Bad span', plannedDate: '2026-10-07', start: '12:00', end: '11:00' },
+          { type: 'schedule', title: 'Перерыв', kind: 'break', date: '2026-10-07', start: '10:30', end: '10:45' },
+        ],
+      },
+      refs,
+    )
+    expect(out?.actions).toEqual([
+      { type: 'create_task', title: 'Отчет', plannedDate: '2026-10-07', start: '09:00', end: '10:30' },
+      { type: 'create_task', title: 'Email', plannedDate: '2026-10-07', start: '11:00', end: '11:30' },
+      { type: 'create_task', title: 'Bad span', plannedDate: '2026-10-07' },
+      { type: 'schedule', title: 'Перерыв', kind: 'break', date: '2026-10-07', start: '10:30', end: '10:45' },
+    ])
+  })
+
   it('lists upcoming dates with weekdays', () => {
     const list = dates('2026-09-27', 7)
     expect(list.startsWith('today (Sun) 2026-09-27, tomorrow (Mon) 2026-09-28, Tue 2026-09-29')).toBe(true)

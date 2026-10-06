@@ -427,6 +427,8 @@ export const ru = {
     actions: {
       create: 'Создать задачу «{{title}}»',
       schedule: 'Запланировать «{{title}}» · {{when}}',
+      break: 'Перерыв · {{when}}',
+      breakNamed: 'Перерыв «{{title}}» · {{when}}',
       move: 'Перенести «{{title}}» · {{when}}',
       planDate: 'Назначить «{{title}}» на {{date}}',
       due: 'срок {{date}}',

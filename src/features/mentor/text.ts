@@ -36,10 +36,18 @@ export function useMentorText() {
       case 'create_task':
         return (
           t('mentor.actions.create', { title: a.title }) +
-          (a.plannedDate ? ` · ${day(a.plannedDate)}` : '') +
+          (a.plannedDate
+            ? ` · ${a.start && a.end ? when(a.plannedDate, a.start, a.end) : day(a.plannedDate)}`
+            : '') +
           (a.dueDate ? ` · ${t('mentor.actions.due', { date: day(a.dueDate) })}` : '')
         )
       case 'schedule':
+        if (a.kind === 'break') {
+          // "Break «Break»" reads oddly: a generic title is left out.
+          return ['перерыв', 'break'].includes(a.title!.toLowerCase().trim())
+            ? t('mentor.actions.break', { when: when(a.date, a.start, a.end) })
+            : t('mentor.actions.breakNamed', { title: a.title, when: when(a.date, a.start, a.end) })
+        }
         return t('mentor.actions.schedule', {
           title: a.taskRef ? task(a.taskRef) : a.title,
           when: when(a.date, a.start, a.end),
