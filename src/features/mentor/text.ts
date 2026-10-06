@@ -16,6 +16,8 @@ export function useMentorText() {
 
   const errorText = (e: unknown) => {
     if (!(e instanceof MentorApiError)) return t('mentor.errors.failed')
+    if (e.code === 'unreachable')
+      return import.meta.env.DEV ? t('mentor.errors.devServer') : t('mentor.errors.unavailable')
     if (e.code === 'rate_limited') {
       const minutes = Math.ceil((e.retryAfter ?? 60) / 60)
       const later =

@@ -1,8 +1,8 @@
-import { CheckmarkRegular, DismissRegular, SendRegular } from '@fluentui/react-icons'
+import { CheckmarkRegular, DismissRegular, SendRegular, SparkleRegular } from '@fluentui/react-icons'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { requestChat } from '@/mentor/api'
-import { applyAction, loadRefs, storeRefs } from '@/mentor/apply'
+import { applyAction, inTimeOrder, loadRefs, storeRefs } from '@/mentor/apply'
 import { Button } from '@/ui/Button'
 import { addMessage, clearChat, setActionState, useMentor, type StoredMessage } from './store'
 import { plain, useMentorText } from './text'
@@ -54,7 +54,7 @@ export function ChatPanel({
         content: res.reply,
         ...(res.actions.length
           ? {
-              actions: res.actions.map((action) => ({
+              actions: inTimeOrder(res.actions).map((action) => ({
                 action,
                 label: actionLabel(action, context),
                 state: 'pending' as const,
@@ -91,6 +91,14 @@ export function ChatPanel({
     }
   }
 
+  // One after another: each goes through the repositories and may depend on the one before.
+  const [applying, setApplying] = useState<string | null>(null)
+  const applyAll = async (m: StoredMessage) => {
+    setApplying(m.id)
+    for (const [i, a] of (m.actions ?? []).entries()) if (a.state === 'pending') await apply(m, i)
+    setApplying(null)
+  }
+
   const chips = ['first', 'tomorrow', 'behind', 'split'] as const
 
   return (
@@ -105,8 +113,30 @@ export function ChatPanel({
       </header>
 
       <div ref={list} className={s.messages}>
-        {messages.length === 0 && <p className={s.hint}>{t('mentor.chat.intro')}</p>}
-        {messages.map((m) => (
+        {/* An empty conversation is an invitation, not a blank box. */}
+        {messages.length === 0 && (
+          <div className={s.empty}>
+            <SparkleRegular className={s.emptyIcon} />
+            <h3 className={s.emptyTitle}>{t('mentor.chat.emptyTitle')}</h3>
+            <p className={s.hint}>{t('mentor.chat.intro')}</p>
+            <div className={s.chips}>
+              {chips.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  className={s.chip}
+                  disabled={busy || !mentor.ready}
+                  onClick={() => void send(t(`mentor.chat.chips.${c}`))}
+                >
+                  {t(`mentor.chat.chips.${c}`)}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {messages.map((m) => {
+          const pending = m.actions?.filter((a) => a.state === 'pending').length ?? 0
+          return (
           <div key={m.id} className={s.message} data-role={m.role}>
             <p>{plain(m.content)}</p>
             {m.actions?.map((a, i) => (
@@ -115,11 +145,13 @@ export function ChatPanel({
                 {a.state === 'pending' ? (
                   <span className={s.actionButtons}>
                     <Button
-                      variant="accent"
+                      variant={pending > 1 ? 'standard' : 'accent'}
                       icon={<CheckmarkRegular />}
+                      disabled={applying === m.id}
+                      aria-label={t('mentor.chat.apply')}
                       onClick={() => void apply(m, i)}
                     >
-                      {t('mentor.chat.apply')}
+                      <span className={s.applyLabel}>{t('mentor.chat.apply')}</span>
                     </Button>
                     <Button
                       variant="subtle"
@@ -140,8 +172,21 @@ export function ChatPanel({
                 )}
               </div>
             ))}
+            {pending > 1 && (
+              <div className={s.applyAll}>
+                <Button
+                  variant="accent"
+                  icon={<CheckmarkRegular />}
+                  disabled={applying === m.id}
+                  onClick={() => void applyAll(m)}
+                >
+                  {t('mentor.chat.applyAll', { count: pending })}
+                </Button>
+              </div>
+            )}
           </div>
-        ))}
+          )
+        })}
         {busy && (
           <div className={s.message} data-role="assistant">
             <p className={s.thinking}>{t('mentor.chat.thinking')}</p>
@@ -150,21 +195,6 @@ export function ChatPanel({
       </div>
 
       {error && <p className={s.error}>{error}</p>}
-      {messages.length === 0 && (
-        <div className={s.chips}>
-          {chips.map((c) => (
-            <button
-              key={c}
-              type="button"
-              className={s.chip}
-              disabled={busy || !mentor.ready}
-              onClick={() => void send(t(`mentor.chat.chips.${c}`))}
-            >
-              {t(`mentor.chat.chips.${c}`)}
-            </button>
-          ))}
-        </div>
-      )}
       <form
         className={s.composer}
         onSubmit={(e) => {

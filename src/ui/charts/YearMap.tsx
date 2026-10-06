@@ -1,4 +1,5 @@
-import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { intensity } from './scale'
 import s from './charts.module.css'
 
@@ -35,11 +36,26 @@ export function YearMap({
   tip,
   onSelect,
 }: YearMapProps) {
-  const [hover, setHover] = useState<{ cell: YearMapCell; x: number; y: number } | null>(null)
+  /** Where the hovered day is on screen; the tip floats above the page, outside the scroller. */
+  const [hover, setHover] = useState<{ cell: YearMapCell; box: DOMRect } | null>(null)
   /** A finger inspects days (details under the map); only a mouse click opens one. */
   const [touch, setTouch] = useState(false)
   const scroller = useRef<HTMLDivElement>(null)
   const max = Math.max(0, ...columns.flatMap((c) => c.cells.map((x) => x?.value ?? 0)))
+
+  // A tip pinned to screen coordinates would drift once anything scrolls: drop it instead.
+  const hovering = hover !== null
+  useEffect(() => {
+    if (!hovering) return
+    const hide = () => setHover(null)
+    const el = scroller.current
+    window.addEventListener('scroll', hide, true)
+    el?.addEventListener('scroll', hide)
+    return () => {
+      window.removeEventListener('scroll', hide, true)
+      el?.removeEventListener('scroll', hide)
+    }
+  }, [hovering])
 
   // Too narrow for the whole year (phones), the map scrolls sideways: start at the latest weeks.
   useLayoutEffect(() => {
@@ -85,15 +101,7 @@ export function YearMap({
                     style={{ '--v': cell.future ? 0 : intensity(cell.value, max) } as CSSProperties}
                     onPointerEnter={(e) => {
                       if (cell.future) return
-                      const el = e.currentTarget
-                      const parent = el.offsetParent as HTMLElement | null
-                      const box = el.getBoundingClientRect()
-                      const origin = parent?.getBoundingClientRect()
-                      setHover({
-                        cell,
-                        x: box.left - (origin?.left ?? 0) + box.width / 2,
-                        y: box.top - (origin?.top ?? 0),
-                      })
+                      setHover({ cell, box: e.currentTarget.getBoundingClientRect() })
                     }}
                     onClick={() => !cell.future && !touch && onSelect?.(cell)}
                   />
@@ -103,14 +111,34 @@ export function YearMap({
               )}
             </div>
           ))}
-          {hover && !touch && (
-            <div className={s.tip} style={{ left: hover.x, top: hover.y - 6 }}>
-              {tip(hover.cell)}
-            </div>
-          )}
         </div>
       </div>
+      {hover && !touch && createPortal(<FloatingTip box={hover.box}>{tip(hover.cell)}</FloatingTip>, document.body)}
       {touch && hover && <div className={s.yearCaption}>{tip(hover.cell)}</div>}
     </>
+  )
+}
+
+/** Room the tip needs above a cell, and how close to a screen edge it may centre itself. */
+const ROOM_ABOVE = 110
+const EDGE = 140
+
+/**
+ * The day's tip, fixed to the screen: never clipped by the card or the sideways scroller, and
+ * never widening it. It opens below the top rows and leans inwards at the screen's edges.
+ */
+function FloatingTip({ box, children }: { box: DOMRect; children: ReactNode }) {
+  const below = box.top < ROOM_ABOVE
+  const align = box.left < EDGE ? 'start' : box.right > window.innerWidth - EDGE ? 'end' : 'center'
+  const left = align === 'start' ? box.left : align === 'end' ? box.right : box.left + box.width / 2
+  return (
+    <div
+      className={`${s.tip} ${s.tipFixed}`}
+      data-below={below}
+      data-align={align}
+      style={{ left, top: below ? box.bottom + 6 : box.top - 6 }}
+    >
+      {children}
+    </div>
   )
 }

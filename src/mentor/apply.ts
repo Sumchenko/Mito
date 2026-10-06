@@ -9,6 +9,30 @@ export function atTime(date: string, time: string) {
   return new Date(y, m - 1, d, h, min).getTime()
 }
 
+/** When an action happens: its day and start time, for showing proposals in time order. */
+function actionWhen(a: MentorAction): string {
+  switch (a.type) {
+    case 'create_task':
+      return a.plannedDate ?? a.dueDate ?? ''
+    case 'schedule':
+    case 'move_block':
+      return `${a.date}T${a.start}`
+    case 'plan_date':
+      return a.date
+  }
+}
+
+/**
+ * Proposals in chronological order; undated ones (a task with no day) go last. A day without a
+ * time sorts before that day's timed items. Stable, so the mentor's order breaks ties.
+ */
+export function inTimeOrder<T extends MentorAction>(actions: readonly T[]): T[] {
+  return actions
+    .map((action, i) => ({ action, i, when: actionWhen(action) || '￿' }))
+    .sort((a, b) => a.when.localeCompare(b.when) || a.i - b.i)
+    .map((x) => x.action)
+}
+
 /** Serialisable form of a ref map, kept with a chat message so its actions stay applicable. */
 export type StoredRefs = { task: [string, string][]; block: [string, string][] }
 export const storeRefs = (refs: RefMap): StoredRefs => ({

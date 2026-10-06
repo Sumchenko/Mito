@@ -27,9 +27,9 @@ import {
 
 /** A failed mentor call, with what the user should be told. */
 export class MentorApiError extends Error {
-  code: MentorErrorCode | 'offline'
+  code: MentorErrorCode | 'offline' | 'unreachable'
   retryAfter: number | undefined
-  constructor(code: MentorErrorCode | 'offline', retryAfter?: number) {
+  constructor(code: MentorErrorCode | 'offline' | 'unreachable', retryAfter?: number) {
     super(`mentor: ${code}`)
     this.name = 'MentorApiError'
     this.code = code
@@ -47,6 +47,11 @@ async function call(req: MentorRequest): Promise<unknown> {
     })
   } catch {
     throw new MentorApiError('offline')
+  }
+  // A gateway error without our JSON: the mentor service itself is down (in development, it is
+  // simply not started), which is not the same as a failed answer.
+  if (!res.ok && res.status >= 502 && res.status <= 504 && !res.headers.get('content-type')?.includes('json')) {
+    throw new MentorApiError('unreachable')
   }
   const body = (await res.json().catch(() => null)) as {
     error?: MentorErrorCode

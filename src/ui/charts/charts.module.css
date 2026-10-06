@@ -87,6 +87,27 @@
   white-space: nowrap;
 }
 
+/* The year map's tip floats over the page; it picks its side from the room it has. */
+.tip-fixed {
+  position: fixed;
+  z-index: 60;
+}
+.tip-fixed[data-align='start'] {
+  transform: translate(0, -100%);
+}
+.tip-fixed[data-align='end'] {
+  transform: translate(-100%, -100%);
+}
+.tip-fixed[data-below='true'] {
+  transform: translate(-50%, 0);
+}
+.tip-fixed[data-below='true'][data-align='start'] {
+  transform: translate(0, 0);
+}
+.tip-fixed[data-below='true'][data-align='end'] {
+  transform: translate(-100%, 0);
+}
+
 /* ---------- Rings ---------- */
 .donut {
   position: relative;
