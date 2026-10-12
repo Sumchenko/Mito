@@ -44,3 +44,7 @@ __MITO_DOMAIN__ {
 	# Access logs go to the journal: journalctl -u caddy
 	log
 }
+
+# Other sites on this server (e.g. the portfolio) keep their configs in /etc/caddy/sites/,
+# so rewriting this file on every Mito deploy does not drop them.
+import /etc/caddy/sites/*.caddy
